@@ -1,18 +1,17 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:fdm=marker:ai
 
 
 __license__   = 'GPL v3'
 __copyright__ = '2013, Kovid Goyal <kovid at kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import sys, copy
-from polyglot.builtins import map, range
+import copy
+import sys
 from collections import namedtuple
 
 from qt.core import QLinearGradient, QPointF, sip
 
-from calibre.ebooks.pdf.render.common import Name, Array, Dictionary
+from calibre.ebooks.pdf.render.common import Array, Dictionary, Name
 
 Stop = namedtuple('Stop', 't color')
 

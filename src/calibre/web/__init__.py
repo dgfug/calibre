@@ -1,5 +1,3 @@
-
-
 __license__   = 'GPL v3'
 __copyright__ = '2008, Kovid Goyal <kovid at kovidgoyal.net>'
 
@@ -41,8 +39,9 @@ def get_download_filename(url, cookie_file=None):
     Get a local filename for a URL using the content disposition header
     Returns empty string if an error occurs.
     '''
-    from calibre import browser
     from contextlib import closing
+
+    from calibre import browser
 
     filename = ''
 

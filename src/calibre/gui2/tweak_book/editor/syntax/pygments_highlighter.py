@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 
 
 __license__ = 'GPL v3'
@@ -8,11 +7,11 @@ __copyright__ = '2014, Kovid Goyal <kovid at kovidgoyal.net>'
 import numbers
 from functools import partial
 
+from pygments.lexer import Error, _TokenType
 from qt.core import QTextBlockUserData
-from pygments.lexer import _TokenType, Error
 
 from calibre.gui2.tweak_book.editor.syntax.base import SyntaxHighlighter
-from calibre.gui2.tweak_book.editor.syntax.utils import format_for_pygments_token, NULL_FMT
+from calibre.gui2.tweak_book.editor.syntax.utils import NULL_FMT, format_for_pygments_token
 
 NORMAL = 0
 
@@ -35,8 +34,7 @@ def create_lexer(base_class):
                         if type(action) is _TokenType:
                             yield pos, action, m.group()
                         else:
-                            for item in action(self, m):
-                                yield item
+                            yield from action(self, m)
                     pos = m.end()
                     if new_state is not None:
                         # state transition

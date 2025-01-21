@@ -1,11 +1,17 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 
 
 __license__ = 'GPL v3'
 __copyright__ = '2014, Kovid Goyal <kovid at kovidgoyal.net>'
 
-import pdb, socket, inspect, sys, select, os, atexit, time
+import atexit
+import inspect
+import os
+import pdb
+import select
+import socket
+import sys
+import time
 from contextlib import suppress
 
 from calibre.constants import cache_dir
@@ -52,7 +58,7 @@ class RemotePdb(pdb.Pdb):
         try:
             self.sock.shutdown(socket.SHUT_RDWR)
             self.sock.close()
-        except socket.error:
+        except OSError:
             pass
         return pdb.Pdb.do_continue(self, None)
 
@@ -100,13 +106,13 @@ def cli(port=4444):
         try:
             sock.connect(('127.0.0.1', port))
             break
-        except socket.error:
+        except OSError:
             pass
         time.sleep(0.1)
     else:
         try:
             sock.connect(('127.0.0.1', port))
-        except socket.error as err:
+        except OSError as err:
             print('Failed to connect to remote debugger:', err, file=sys.stderr)
             raise SystemExit(1)
     print('Connected to remote process', flush=True)
@@ -118,7 +124,7 @@ def cli(port=4444):
         histfile = os.path.join(cache_dir(), 'rpdb.history')
         try:
             readline.read_history_file(histfile)
-        except IOError:
+        except OSError:
             pass
         atexit.register(readline.write_history_file, histfile)
         p = pdb.Pdb()

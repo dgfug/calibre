@@ -1,21 +1,37 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 __license__   = 'GPL v3'
 __copyright__ = '2012, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
+from contextlib import suppress
+
 from qt.core import (
-    QLineEdit, QAbstractListModel, Qt, pyqtSignal, QObject, QKeySequence, QAbstractItemView,
-    QApplication, QListView, QPoint, QModelIndex, QEvent,
-    QStyleOptionComboBox, QStyle, QComboBox, QTimer, sip)
+    QAbstractItemView,
+    QAbstractListModel,
+    QApplication,
+    QComboBox,
+    QEvent,
+    QKeySequence,
+    QLineEdit,
+    QListView,
+    QModelIndex,
+    QObject,
+    QPoint,
+    QStyle,
+    QStyleOptionComboBox,
+    Qt,
+    QTimer,
+    pyqtProperty,
+    pyqtSignal,
+    sip,
+)
 
 from calibre.constants import ismacos
-from calibre.utils.icu import sort_key, primary_startswith, primary_contains
 from calibre.gui2.widgets import EnComboBox, LineEditECM
 from calibre.utils.config import tweaks
-from polyglot.builtins import unicode_type
+from calibre.utils.icu import primary_contains, primary_startswith, sort_key
 
 
 def containsq(x, prefix):
@@ -64,10 +80,19 @@ class CompleteModel(QAbstractListModel):  # {{{
 
     def data(self, index, role):
         if role == Qt.ItemDataRole.DisplayRole:
-            try:
+            with suppress(IndexError):
+                ans = self.current_items[index.row()].replace('\n', ' ')
+                if not self.strip_completion_entries:
+                    ls = ans.lstrip()
+                    if len(ls) < len(ans):
+                        ans = '␣'*(len(ans) - len(ls)) + ls
+                    rs = ans.rstrip()
+                    if len(rs) < len(ans):
+                        ans = rs + '␣'*(len(ans) - len(rs))
+                return ans
+        if role == Qt.ItemDataRole.UserRole:
+            with suppress(IndexError):
                 return self.current_items[index.row()]
-            except IndexError:
-                pass
 
     def index_for_prefix(self, prefix):
         for i, item in enumerate(self.current_items):
@@ -79,6 +104,7 @@ class CompleteModel(QAbstractListModel):  # {{{
 class Completer(QListView):  # {{{
 
     item_selected = pyqtSignal(object)
+    apply_current_text = pyqtSignal()
     relayout_needed = pyqtSignal()
 
     def __init__(self, completer_widget, max_visible_items=7, sort_func=sort_key, strip_completion_entries=True):
@@ -98,6 +124,8 @@ class Completer(QListView):  # {{{
         self.pressed.connect(self.item_chosen)
         self.installEventFilter(self)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.tab_accepts_uncompleted_text = (tweaks['tab_accepts_uncompleted_text'] and
+                                             not tweaks['preselect_first_completion'])
 
     def hide(self):
         self.setCurrentIndex(QModelIndex())
@@ -107,8 +135,8 @@ class Completer(QListView):  # {{{
         if not self.isVisible():
             return
         self.hide()
-        text = self.model().data(index, Qt.ItemDataRole.DisplayRole)
-        self.item_selected.emit(unicode_type(text))
+        text = self.model().data(index, Qt.ItemDataRole.UserRole)
+        self.item_selected.emit(str(text))
 
     def set_items(self, items):
         self.model().set_items(items)
@@ -144,7 +172,7 @@ class Completer(QListView):  # {{{
         widget = self.parent()
         if widget is None:
             return
-        screen = QApplication.desktop().availableGeometry(widget)
+        screen = widget.screen().availableGeometry()
         h = (p.sizeHintForRow(0) * min(self.max_visible_items, m.rowCount()) + 3) + 3
         hsb = p.horizontalScrollBar()
         if hsb and hsb.isVisible():
@@ -229,6 +257,9 @@ class Completer(QListView):  # {{{
                 if idx.isValid():
                     self.item_chosen(idx)
                     self.hide()
+                elif self.tab_accepts_uncompleted_text:
+                    self.hide()
+                    self.apply_current_text.emit()
                 elif self.model().rowCount() > 0:
                     self.next_match()
                 e.accept()
@@ -303,12 +334,17 @@ class LineEdit(QLineEdit, LineEditECM):
         self.mcompleter = Completer(completer_widget, sort_func=sort_func, strip_completion_entries=strip_completion_entries)
         self.mcompleter.item_selected.connect(self.completion_selected,
                 type=Qt.ConnectionType.QueuedConnection)
+        self.mcompleter.apply_current_text.connect(self.apply_current_text,
+                type=Qt.ConnectionType.QueuedConnection)
         self.mcompleter.relayout_needed.connect(self.relayout)
         self.mcompleter.setFocusProxy(completer_widget)
         self.textEdited.connect(self.text_edited)
         self.no_popup = False
 
     # Interface {{{
+    def set_sort_func(self, sort_func):
+        self.mcompleter.model().sort_func = sort_func
+
     def update_items_cache(self, complete_items):
         self.all_items = complete_items
 
@@ -380,7 +416,7 @@ class LineEdit(QLineEdit, LineEditECM):
     def update_completions(self):
         ' Update the list of completions '
         self.original_cursor_pos = cpos = self.cursorPosition()
-        text = unicode_type(self.text())
+        text = str(self.text())
         prefix = text[:cpos]
         complete_prefix = prefix.lstrip()
         if self.sep:
@@ -397,7 +433,7 @@ class LineEdit(QLineEdit, LineEditECM):
                 cursor_pos = self.cursorPosition()
             self.original_cursor_pos = None
             # Split text
-            curtext = unicode_type(self.text())
+            curtext = str(self.text())
             before_text = curtext[:cursor_pos]
             after_text = curtext[cursor_pos:].rstrip()
             # Remove the completion prefix from the before text
@@ -417,10 +453,18 @@ class LineEdit(QLineEdit, LineEditECM):
             return before_text + completed_text, after_text
 
     def completion_selected(self, text):
-        before_text, after_text = self.get_completed_text(unicode_type(text))
+        before_text, after_text = self.get_completed_text(str(text))
         self.setText(before_text + after_text)
         self.setCursorPosition(len(before_text))
         self.item_selected.emit(text)
+
+    def apply_current_text(self):
+        if self.sep is not None:
+            txt = str(self.text())
+            sep_pos = txt.rfind(self.sep)
+            if sep_pos:
+                ntxt = txt[sep_pos+1:].strip()
+                self.completion_selected(ntxt)
 
 
 class EditWithComplete(EnComboBox):
@@ -438,6 +482,10 @@ class EditWithComplete(EnComboBox):
         self.installEventFilter(self)
 
     # Interface {{{
+
+    def set_sort_func(self, sort_func):
+        self.lineEdit().set_sort_func(sort_func)
+
     def showPopup(self):
         orig = self.disable_popup
         self.disable_popup = False
@@ -459,7 +507,7 @@ class EditWithComplete(EnComboBox):
         self.lineEdit().set_add_separator(what)
 
     def show_initial_value(self, what):
-        what = unicode_type(what) if what else u''
+        what = str(what) if what else ''
         self.setText(what)
         self.lineEdit().selectAll()
 
@@ -487,7 +535,16 @@ class EditWithComplete(EnComboBox):
     # }}}
 
     def text(self):
-        return unicode_type(self.lineEdit().text())
+        return self.lineEdit().text()
+
+    def set_current_text(self, text):
+        self.setText(text)
+        self.selectAll()
+
+    # Create a Qt user property for the current text so that when this widget
+    # is used as an edit widget in a table view it selects all text, as
+    # matching the behavior of all other Qt widgets.
+    current_text = pyqtProperty(str, fget=text, fset=set_current_text, user=True)
 
     def selectAll(self):
         self.lineEdit().selectAll()
@@ -526,14 +583,15 @@ class EditWithComplete(EnComboBox):
 
 if __name__ == '__main__':
     from qt.core import QDialog, QVBoxLayout
+
     from calibre.gui2 import Application
     app = Application([])
     d = QDialog()
     d.setLayout(QVBoxLayout())
     le = EditWithComplete(d)
     d.layout().addWidget(le)
-    items = ['one', 'otwo', 'othree', 'ooone', 'ootwo', 'other', 'odd', 'over', 'orc', 'oven', 'owe',
-        'oothree', 'a1', 'a2',u'Edgas', u'Èdgar', u'Édgaq', u'Edgar', u'Édgar']
+    items = ['oane\n line2\n line3', 'otwo', 'othree', 'ooone', 'ootwo', 'other', 'odd', 'over', 'orc', 'oven', 'owe',
+        'oothree', 'a1', 'a2','Edgas', 'Èdgar', 'Édgaq', 'Edgar', 'Édgar']
     le.update_items_cache(items)
     le.show_initial_value('')
-    d.exec_()
+    d.exec()

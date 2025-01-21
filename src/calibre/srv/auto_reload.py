@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 
 
 __license__ = 'GPL v3'
@@ -297,7 +296,7 @@ class Worker:
             self.retry_count = 0
         try:
             compile_srv()
-        except EnvironmentError as e:
+        except OSError as e:
             # Happens if the editor deletes and replaces a file being edited
             if e.errno != errno.ENOENT or not getattr(e, 'filename', False):
                 raise
@@ -327,7 +326,7 @@ class Worker:
                     s = ssl.wrap_socket(s)
                 s.connect(('localhost', self.port))
                 return
-            except socket.error:
+            except OSError:
                 time.sleep(0.01)
             finally:
                 s.close()

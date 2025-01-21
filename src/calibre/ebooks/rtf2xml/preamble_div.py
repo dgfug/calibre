@@ -1,5 +1,3 @@
-
-
 #########################################################################
 #                                                                       #
 #                                                                       #
@@ -12,9 +10,12 @@
 #                                                                       #
 #                                                                       #
 #########################################################################
-import sys, os
-from calibre.ebooks.rtf2xml import copy, override_table, list_table
+import os
+import sys
+
+from calibre.ebooks.rtf2xml import copy, list_table, override_table
 from calibre.ptempfile import better_mktemp
+
 from . import open_for_read, open_for_write
 
 
@@ -408,8 +409,8 @@ cw<ci<font-style<nu<0
 
     def __margin_func(self, line):
         """
-        Handles lines that describe page info. Add the apporpriate info in the
-        token to the self.__margin_dict dicitonary.
+        Handles lines that describe page info. Add the appropriate info in the
+        token to the self.__margin_dict dictionary.
         """
         info = line[6:16]
         changed = self.__margin_dict.get(info)
@@ -423,7 +424,7 @@ cw<ci<font-style<nu<0
         self.__write_obj.write('mi<tg<empty-att_<page-definition')
         for key in self.__page.keys():
             self.__write_obj.write(
-            '<%s>%s' % (key, self.__page[key])
+            f'<{key}>{self.__page[key]}'
             )
         self.__write_obj.write('\n')
 # mi<tg<open-att__<footn

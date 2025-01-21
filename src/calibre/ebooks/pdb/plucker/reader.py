@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-
 __license__   = 'GPL v3'
 __copyright__ = '20011, John Schember <john@nachtimwald.com>'
 __docformat__ = 'restructuredtext en'
@@ -8,15 +5,14 @@ __docformat__ = 'restructuredtext en'
 import os
 import struct
 import zlib
-
 from collections import OrderedDict
 
 from calibre import CurrentDir
-from calibre.ebooks.pdb.formatreader import FormatReader
 from calibre.ebooks.compression.palmdoc import decompress_doc
+from calibre.ebooks.pdb.formatreader import FormatReader
+from calibre.utils.img import Canvas, image_from_data, save_cover_data_to
 from calibre.utils.imghdr import identify
-from calibre.utils.img import save_cover_data_to, Canvas, image_from_data
-from polyglot.builtins import codepoint_to_chr, range
+from polyglot.builtins import codepoint_to_chr
 
 DATATYPE_PHTML = 0
 DATATYPE_PHTML_COMPRESSED = 1
@@ -363,9 +359,9 @@ class Reader(FormatReader):
         # plugin assemble the order based on hyperlinks.
         with CurrentDir(output_dir):
             for uid, num in self.uid_text_secion_number.items():
-                self.log.debug('Writing record with uid: %s as %s.html' % (uid, uid))
+                self.log.debug(f'Writing record with uid: {uid} as {uid}.html')
                 with open('%s.html' % uid, 'wb') as htmlf:
-                    html = u'<html><body>'
+                    html = '<html><body>'
                     section_header, section_data = self.sections[num]
                     if section_header.type == DATATYPE_PHTML:
                         html += self.process_phtml(section_data.data, section_data.header.paragraph_offsets)
@@ -396,9 +392,9 @@ class Reader(FormatReader):
                     try:
                         save_cover_data_to(idata, '%s.jpg' % uid, compression_quality=70)
                         images.add(uid)
-                        self.log.debug('Wrote image with uid %s to images/%s.jpg' % (uid, uid))
+                        self.log.debug(f'Wrote image with uid {uid} to images/{uid}.jpg')
                     except Exception as e:
-                        self.log.error('Failed to write image with uid %s: %s' % (uid, e))
+                        self.log.error(f'Failed to write image with uid {uid}: {e}')
                 else:
                     self.log.error('Failed to write image with uid %s: No data.' % uid)
             # Composite images.
@@ -415,7 +411,7 @@ class Reader(FormatReader):
                         for col in row:
                             if col not in images:
                                 raise Exception('Image with uid: %s missing.' % col)
-                            w, h = identify(lopen('%s.jpg' % col, 'rb'))[1:]
+                            w, h = identify(open('%s.jpg' % col, 'rb'))[1:]
                             row_width += w
                             if col_height < h:
                                 col_height = h
@@ -430,18 +426,18 @@ class Reader(FormatReader):
                             x_off = 0
                             largest_height = 0
                             for col in row:
-                                im = image_from_data(lopen('%s.jpg' % col, 'rb').read())
+                                im = image_from_data(open('%s.jpg' % col, 'rb').read())
                                 canvas.compose(im, x_off, y_off)
                                 w, h = im.width(), im.height()
                                 x_off += w
                                 if largest_height < h:
                                     largest_height = h
                             y_off += largest_height
-                    with lopen('%s.jpg' % uid) as out:
+                    with open('%s.jpg' % uid) as out:
                         out.write(canvas.export(compression_quality=70))
-                    self.log.debug('Wrote composite image with uid %s to images/%s.jpg' % (uid, uid))
+                    self.log.debug(f'Wrote composite image with uid {uid} to images/{uid}.jpg')
                 except Exception as e:
-                    self.log.error('Failed to write composite image with uid %s: %s' % (uid, e))
+                    self.log.error(f'Failed to write composite image with uid {uid}: {e}')
 
         # Run the HTML through the html processing plugin.
         from calibre.customize.ui import plugin_for_input_format
@@ -477,7 +473,7 @@ class Reader(FormatReader):
             return decompress_doc(data)
 
     def process_phtml(self, d, paragraph_offsets=()):
-        html = u'<p id="p0">'
+        html = '<p id="p0">'
         offset = 0
         paragraph_open = True
         link_open = False
@@ -488,11 +484,11 @@ class Reader(FormatReader):
         while offset < len(d):
             if not paragraph_open:
                 if need_set_p_id:
-                    html += u'<p id="p%s">' % p_num
+                    html += '<p id="p%s">' % p_num
                     p_num += 1
                     need_set_p_id = False
                 else:
-                    html += u'<p>'
+                    html += '<p>'
                 paragraph_open = True
 
             c = ord(d[offset:offset+1])
@@ -524,7 +520,7 @@ class Reader(FormatReader):
                     offset += 2
                     pid = struct.unpack('>H', d[offset:offset+2])[0]
                     if id in self.uid_text_secion_number:
-                        html += '<a href="%s.html#p%s">' % (id, pid)
+                        html += f'<a href="{id}.html#p{pid}">'
                         link_open = True
                     offset += 1
                 # Targeted paragraph link begins
@@ -616,23 +612,23 @@ class Reader(FormatReader):
                 elif c == 0x33:
                     offset += 3
                     if paragraph_open:
-                        html += u'</p>'
+                        html += '</p>'
                         paragraph_open = False
-                    html += u'<hr />'
+                    html += '<hr />'
                 # New line
                 # 0 Bytes
                 elif c == 0x38:
                     if paragraph_open:
-                        html += u'</p>\n'
+                        html += '</p>\n'
                         paragraph_open = False
                 # Italic text begins
                 # 0 Bytes
                 elif c == 0x40:
-                    html += u'<i>'
+                    html += '<i>'
                 # Italic text ends
                 # 0 Bytes
                 elif c == 0x48:
-                    html += u'</i>'
+                    html += '</i>'
                 # Set text color
                 # 3 Bytes
                 # 8-bit red, 8-bit green, 8-bit blue
@@ -649,19 +645,19 @@ class Reader(FormatReader):
                 # Underline text begins
                 # 0 Bytes
                 elif c == 0x60:
-                    html += u'<u>'
+                    html += '<u>'
                 # Underline text ends
                 # 0 Bytes
                 elif c == 0x68:
-                    html += u'</u>'
+                    html += '</u>'
                 # Strike-through text begins
                 # 0 Bytes
                 elif c == 0x70:
-                    html += u'<s>'
+                    html += '<s>'
                 # Strike-through text ends
                 # 0 Bytes
                 elif c == 0x78:
-                    html += u'</s>'
+                    html += '</s>'
                 # 16-bit Unicode character
                 # 3 Bytes
                 # alternate text length, 16-bit unicode character
@@ -721,10 +717,10 @@ class Reader(FormatReader):
             if offset in paragraph_offsets:
                 need_set_p_id = True
                 if paragraph_open:
-                    html += u'</p>\n'
+                    html += '</p>\n'
                     paragraph_open = False
 
         if paragraph_open:
-            html += u'</p>'
+            html += '</p>'
 
         return html

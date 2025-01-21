@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 __license__   = 'GPL v3'
@@ -8,8 +7,8 @@ __docformat__ = 'restructuredtext en'
 
 import os
 
-from calibre.devices.usbms.driver import USBMS
 from calibre import fsync
+from calibre.devices.usbms.driver import USBMS
 
 
 class PALMPRE(USBMS):
@@ -99,7 +98,7 @@ class PDNOVEL(USBMS):
     def upload_cover(self, path, filename, metadata, filepath):
         coverdata = getattr(metadata, 'thumbnail', None)
         if coverdata and coverdata[2]:
-            with lopen('%s.jpg' % os.path.join(path, filename), 'wb') as coverfile:
+            with open('%s.jpg' % os.path.join(path, filename), 'wb') as coverfile:
                 coverfile.write(coverdata[2])
                 fsync(coverfile)
 
@@ -119,7 +118,7 @@ class PDNOVEL_KOBO(PDNOVEL):
             dirpath = os.path.join(path, '.thumbnail')
             if not os.path.exists(dirpath):
                 os.makedirs(dirpath)
-            with lopen(os.path.join(dirpath, filename+'.jpg'), 'wb') as coverfile:
+            with open(os.path.join(dirpath, filename+'.jpg'), 'wb') as coverfile:
                 coverfile.write(coverdata[2])
                 fsync(coverfile)
 
@@ -194,7 +193,7 @@ class LUMIREAD(USBMS):
             pdir = os.path.dirname(cfilepath)
             if not os.path.exists(pdir):
                 os.makedirs(pdir)
-            with lopen(cfilepath+'.jpg', 'wb') as f:
+            with open(cfilepath+'.jpg', 'wb') as f:
                 f.write(metadata.thumbnail[-1])
                 fsync(f)
 
@@ -346,7 +345,7 @@ class NEXTBOOK(USBMS):
             thumbnail_dir = os.path.join(thumbnail_dir, relpath)
             if not os.path.exists(thumbnail_dir):
                 os.makedirs(thumbnail_dir)
-            with lopen(os.path.join(thumbnail_dir, filename+'.jpg'), 'wb') as f:
+            with open(os.path.join(thumbnail_dir, filename+'.jpg'), 'wb') as f:
                 f.write(metadata.thumbnail[-1])
                 fsync(f)
     '''

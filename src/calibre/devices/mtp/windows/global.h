@@ -7,11 +7,12 @@
 
 #pragma once
 #define UNICODE
-#include <Windows.h>
+#define PY_SSIZE_T_CLEAN
+#include <windows.h>
 #include <atlbase.h>
 #include <Python.h>
 
-#include <Objbase.h>
+#include <objbase.h>
 #include <PortableDeviceApi.h>
 #include <PortableDevice.h>
 #include "../../../utils/windows/common.h"
@@ -48,5 +49,10 @@ extern PyObject* get_file(IPortableDevice *device, const wchar_t *object_id, PyO
 extern PyObject* create_folder(IPortableDevice *device, const wchar_t *parent_id, const wchar_t *name);
 extern PyObject* delete_object(IPortableDevice *device, const wchar_t *object_id);
 extern PyObject* put_file(IPortableDevice *device, const wchar_t *parent_id, const wchar_t *name, PyObject *src, unsigned PY_LONG_LONG size, PyObject *callback);
-
+extern PyObject* find_in_parent(
+    CComPtr<IPortableDeviceContent> &content, const wchar_t *parent_id, PyObject *name);
+extern PyObject* list_folder(
+        IPortableDevice *device, CComPtr<IPortableDeviceContent> &content, IPortableDevicePropertiesBulk *bulk_properties,
+        const wchar_t *folder_id);
+extern PyObject* get_metadata(CComPtr<IPortableDeviceContent> &content, const wchar_t *object_id);
 }

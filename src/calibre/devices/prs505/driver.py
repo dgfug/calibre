@@ -1,5 +1,3 @@
-
-
 __license__   = 'GPL v3'
 __copyright__ = '2008, Kovid Goyal <kovid at kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
@@ -8,14 +6,15 @@ __docformat__ = 'restructuredtext en'
 Device driver for the SONY devices
 '''
 
-import os, time, re
+import os
+import re
+import time
 
-from calibre import fsync
-from calibre.devices.usbms.driver import USBMS, debug_print
-from calibre.devices.prs505 import MEDIA_XML, MEDIA_EXT, CACHE_XML, CACHE_EXT, \
-            MEDIA_THUMBNAIL, CACHE_THUMBNAIL
-from calibre import __appname__, prints
+from calibre import __appname__, fsync, prints
+from calibre.devices.prs505 import CACHE_EXT, CACHE_THUMBNAIL, CACHE_XML, MEDIA_EXT, MEDIA_THUMBNAIL, MEDIA_XML
 from calibre.devices.usbms.books import CollectionsBookList
+from calibre.devices.usbms.driver import USBMS
+from calibre.prints import debug_print
 
 
 class PRS505(USBMS):
@@ -136,7 +135,7 @@ class PRS505(USBMS):
                         except:
                             time.sleep(5)
                             os.makedirs(dname, mode=0o777)
-                    with lopen(cachep, 'wb') as f:
+                    with open(cachep, 'wb') as f:
                         f.write(b'''<?xml version="1.0" encoding="UTF-8"?>
                             <cache xmlns="http://www.kinoma.com/FskCache/1">
                             </cache>
@@ -297,6 +296,6 @@ class PRS505(USBMS):
             if not os.path.exists(thumbnail_dir):
                 os.makedirs(thumbnail_dir)
             cpath = os.path.join(thumbnail_dir, 'main_thumbnail.jpg')
-            with lopen(cpath, 'wb') as f:
+            with open(cpath, 'wb') as f:
                 f.write(metadata.thumbnail[-1])
             debug_print('Cover uploaded to: %r'%cpath)

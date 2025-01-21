@@ -1,16 +1,21 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 __license__ = 'GPL v3'
 __copyright__ = '2009, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import os, shutil, subprocess, tempfile, json, time, filecmp, sys
+import filecmp
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
 
-from setup import Command, __version__, require_clean_git, require_git_master
-from setup.upload import installers
-from setup.parallel_build import parallel_build, create_job
+from setup import Command, __version__, installer_names, require_clean_git, require_git_master
+from setup.parallel_build import create_job, parallel_build
 
 
 class Stage1(Command):
@@ -42,7 +47,7 @@ class Stage2(Command):
         self.info('Starting builds for all platforms, this will take a while...')
 
         session = ['layout vertical']
-        platforms = 'linux', 'osx', 'win'
+        platforms = 'linux64', 'linuxarm64', 'osx', 'win'
         for x in platforms:
             cmd = (
                 '''{exe} -c "import subprocess; subprocess.Popen(['{exe}', './setup.py', '{x}']).wait() != 0 and'''
@@ -59,7 +64,7 @@ class Stage2(Command):
         p.communicate('\n'.join(session).encode('utf-8'))
         p.wait()
 
-        for installer in installers(include_source=False):
+        for installer in installer_names(include_source=False):
             installer = self.j(self.d(self.SRC), installer)
             if not os.path.exists(installer) or os.path.getsize(installer) < 10000:
                 raise SystemExit(
@@ -105,7 +110,8 @@ class Publish(Command):
         if 'PUBLISH_BUILD_DONE' not in os.environ:
             subprocess.check_call([sys.executable, 'setup.py', 'check'])
             subprocess.check_call([sys.executable, 'setup.py', 'build'])
-            subprocess.check_call([sys.executable, 'setup.py', 'test'])
+            if 'SKIP_CALIBRE_TESTS' not in os.environ:
+                subprocess.check_call([sys.executable, 'setup.py', 'test'])
             subprocess.check_call([sys.executable, 'setup.py', 'pot'])
             subprocess.check_call([sys.executable, 'setup.py', 'translations'])
             os.environ['PUBLISH_BUILD_DONE'] = '1'
@@ -125,6 +131,30 @@ class PublishBetas(Command):
         subprocess.check_call((
             'rsync --partial -rh --info=progress2 --delete-after %s/ download.calibre-ebook.com:/srv/download/betas/'
             % dist
+        ).split())
+
+
+class PublishPreview(Command):
+
+    sub_commands = ['stage1', 'stage2', 'sdist']
+
+    def pre_sub_commands(self, opts):
+        version = tuple(map(int, __version__.split('.')))
+        if version[2] < 100:
+            raise SystemExit('Must set calibre version to have patch level greater than 100')
+        require_clean_git()
+        require_git_master()
+
+    def run(self, opts):
+        dist = self.a(self.j(self.d(self.SRC), 'dist'))
+        with open(os.path.join(dist, 'README.txt'), 'w') as f:
+            print('''\
+These are preview releases of changes to calibre since the last normal release.
+Preview releases are typically released every Friday, they serve as a way
+for users to test upcoming features/fixes in the next calibre release.
+''', file=f)
+        subprocess.check_call((
+            f'rsync -rh --info=progress2 --delete-after --delete {dist}/ download.calibre-ebook.com:/srv/download/preview/'
         ).split())
 
 
@@ -165,7 +195,9 @@ class Manual(Command):
         languages = opts.language or list(
             json.load(open(self.j(base, 'locale', 'completed.json'), 'rb'))
         )
-        languages = ['en'] + list(set(languages) - {'en'})
+        languages = set(languages) - {'en'}
+        languages.discard('ta')  # Tamil translations break Sphinx
+        languages = ['en'] + list(languages)
         os.environ['ALL_USER_MANUAL_LANGUAGES'] = ' '.join(languages)
         for language in languages:
             jobs.append(create_job([
@@ -225,7 +257,7 @@ class Manual(Command):
             orig = self.j(self.d(base), r)
             try:
                 sz = os.stat(orig).st_size
-            except EnvironmentError:
+            except OSError:
                 continue
             if sz == os.stat(f).st_size and filecmp._do_cmp(f, orig):
                 os.remove(f)
@@ -255,12 +287,13 @@ class ManPages(Command):
             shutil.rmtree(dest)
         os.makedirs(dest)
         base = self.j(self.d(self.SRC), 'manual')
-        languages = list(available_translations())
-        languages = ['en'] + list(set(languages) - {'en', 'en_GB'})
+        languages = set(available_translations())
+        languages.discard('ta')  # Tamil translatins are completely borked break sphinx
+        languages = ['en'] + list(languages - {'en', 'en_GB'})
         os.environ['ALL_USER_MANUAL_LANGUAGES'] = ' '.join(languages)
         try:
             os.makedirs(dest)
-        except EnvironmentError:
+        except OSError:
             pass
         jobs = []
         for l in languages:
@@ -268,7 +301,7 @@ class ManPages(Command):
                 [sys.executable, self.j(base, 'build.py'), '--man-pages', l, dest],
                 '\n\n**************** Building translations for: %s' % l)
             )
-        self.info('\tCreating man pages in {} for {} languages...'.format(dest, len(jobs)))
+        self.info(f'\tCreating man pages in {dest} for {len(jobs)} languages...')
         subprocess.check_call(jobs[0].cmd)
         if not parallel_build(jobs[1:], self.info, verbose=False):
             raise SystemExit(1)
@@ -307,4 +340,4 @@ class TagRelease(Command):
         subprocess.check_call(
             'git tag -s v{0} -m "version-{0}"'.format(__version__).split()
         )
-        subprocess.check_call('git push origin v{0}'.format(__version__).split())
+        subprocess.check_call(f'git push origin v{__version__}'.split())

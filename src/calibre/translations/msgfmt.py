@@ -1,5 +1,4 @@
 #! /usr/bin/env python
-# vim:fileencoding=utf-8
 # Written by Martin v. Löwis <loewis@informatik.hu-berlin.de>
 
 
@@ -27,18 +26,20 @@ Options:
         Display version information and exit.
 """
 
-import os
-import sys
+import array
 import ast
 import getopt
+import os
 import struct
-import array
+import sys
 from email.parser import HeaderParser
 
 __version__ = "1.2"
 
 MESSAGES = {}
-STATS = {'translated': 0, 'untranslated': 0}
+STATS = {'translated': 0, 'untranslated': 0, 'uniqified': 0}
+MAKE_UNIQUE = False
+NON_UNIQUE = set()
 
 
 def usage(code, msg=''):
@@ -48,17 +49,23 @@ def usage(code, msg=''):
     sys.exit(code)
 
 
-def add(ctxt, id, str, fuzzy):
+def add(ctxt, msgid, msgstr, fuzzy):
     "Add a non-fuzzy translation to the dictionary."
-    if (not fuzzy or not id) and str:
-        if id:
+    if (not fuzzy or not msgid) and msgstr:
+        if msgid:
             STATS['translated'] += 1
         if ctxt is None:
-            MESSAGES[id] = str
+            if msgstr in NON_UNIQUE:
+                STATS['uniqified'] += 1
+                if MAKE_UNIQUE:
+                    msgstr += b' (' + msgid + b')'
+            else:
+                NON_UNIQUE.add(msgstr)
+            MESSAGES[msgid] = msgstr
         else:
-            MESSAGES[b"%b\x04%b" % (ctxt, id)] = str
+            MESSAGES[b"%b\x04%b" % (ctxt, msgid)] = msgstr
     else:
-        if id:
+        if msgid:
             STATS['untranslated'] += 1
 
 
@@ -122,7 +129,7 @@ def make(filename, outfile):
     try:
         with open(infile, 'rb') as f:
             lines = f.readlines()
-    except IOError as msg:
+    except OSError as msg:
         print(msg, file=sys.stderr)
         sys.exit(1)
 
@@ -230,15 +237,16 @@ def make(filename, outfile):
         else:
             with open(outfile, "wb") as f:
                 f.write(output)
-    except IOError as msg:
+    except OSError as msg:
         print(msg, file=sys.stderr)
 
 
 def make_with_stats(filename, outfile):
     MESSAGES.clear()
-    STATS['translated'] = STATS['untranslated'] = 0
+    NON_UNIQUE.clear()
+    STATS['translated'] = STATS['untranslated'] = STATS['uniqified'] = 0
     make(filename, outfile)
-    return STATS['translated'], STATS['untranslated']
+    return STATS.copy()
 
 
 def run_batch(pairs):
@@ -247,8 +255,10 @@ def run_batch(pairs):
 
 
 def main():
+    global MAKE_UNIQUE
     args = sys.argv[1:]
-    if args == ['STDIN']:
+    if args[0] == 'STDIN':
+        MAKE_UNIQUE = args[1] == 'uniqify'
         import json
         results = tuple(run_batch(json.loads(sys.stdin.buffer.read())))
         sys.stdout.buffer.write(json.dumps(results).encode('utf-8'))
@@ -280,7 +290,7 @@ def main():
         return
 
     for filename in args:
-        translated, untranslated = make_with_stats(filename, outfile)
+        make_with_stats(filename, outfile)
         if output_stats:
             print(STATS['translated'], 'translated messages,', STATS['untranslated'], 'untranslated messages.')
 

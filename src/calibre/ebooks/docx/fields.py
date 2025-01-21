@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 
 
 __license__ = 'GPL v3'
@@ -7,7 +6,7 @@ __copyright__ = '2013, Kovid Goyal <kovid at kovidgoyal.net>'
 
 import re
 
-from calibre.ebooks.docx.index import process_index, polish_index_markup
+from calibre.ebooks.docx.index import polish_index_markup, process_index
 from polyglot.builtins import iteritems, native_string_type
 
 
@@ -54,7 +53,7 @@ null = object()
 
 def parser(name, field_map, default_field_name=None):
 
-    field_map = dict((x.split(':') for x in field_map.split()))
+    field_map = dict(x.split(':') for x in field_map.split())
 
     def parse(raw, log=None):
         ans = {}
@@ -195,7 +194,7 @@ class Fields:
             for runs in self.get_runs(field):
                 self.hyperlink_fields.append(({'anchor':dest}, runs))
         else:
-            log.warn('Unsupported reference field (%s), ignoring: %r' % (field.name, ref))
+            log.warn(f'Unsupported reference field ({field.name}), ignoring: {ref!r}')
 
     parse_noteref = parse_ref
 
@@ -248,7 +247,8 @@ def test_parse_fields(return_tests=False):
     class TestParseFields(unittest.TestCase):
 
         def test_hyperlink(self):
-            ae = lambda x, y: self.assertEqual(parse_hyperlink(x, None), y)
+            def ae(x, y):
+                return self.assertEqual(parse_hyperlink(x, None), y)
             ae(r'\l anchor1', {'anchor':'anchor1'})
             ae(r'www.calibre-ebook.com', {'url':'www.calibre-ebook.com'})
             ae(r'www.calibre-ebook.com \t target \o tt', {'url':'www.calibre-ebook.com', 'target':'target', 'title': 'tt'})
@@ -256,13 +256,15 @@ def test_parse_fields(return_tests=False):
             ae(r'xxxx \y yyyy', {'url': 'xxxx'})
 
         def test_xe(self):
-            ae = lambda x, y: self.assertEqual(parse_xe(x, None), y)
+            def ae(x, y):
+                return self.assertEqual(parse_xe(x, None), y)
             ae(r'"some name"', {'text':'some name'})
             ae(r'name \b \i', {'text':'name', 'bold':None, 'italic':None})
             ae(r'xxx \y a', {'text':'xxx', 'yomi':'a'})
 
         def test_index(self):
-            ae = lambda x, y: self.assertEqual(parse_index(x, None), y)
+            def ae(x, y):
+                return self.assertEqual(parse_index(x, None), y)
             ae(r'', {})
             ae(r'\b \c 1', {'bookmark':None, 'columns-per-page': '1'})
 

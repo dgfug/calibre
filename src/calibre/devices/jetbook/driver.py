@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-
 __license__   = 'GPL v3'
 __copyright__ = '2009, James Ralston <jralston at mindspring.com>'
 __docformat__ = 'restructuredtext en'
@@ -15,7 +12,6 @@ import re
 from calibre.constants import filesystem_encoding
 from calibre.devices.usbms.driver import USBMS
 from calibre.ebooks.metadata import string_to_authors
-from polyglot.builtins import unicode_type, map
 
 
 class JETBOOK(USBMS):
@@ -59,13 +55,13 @@ class JETBOOK(USBMS):
         au = mi.format_authors()
         if not au:
             au = 'Unknown'
-        return '%s#%s%s' % (au, title, fileext)
+        return f'{au}#{title}{fileext}'
 
     @classmethod
     def metadata_from_path(cls, path):
 
         def check_unicode(txt):
-            if not isinstance(txt, unicode_type):
+            if not isinstance(txt, str):
                 txt = txt.decode(filesystem_encoding, 'replace')
             txt = txt.replace('_', ' ')
             return txt

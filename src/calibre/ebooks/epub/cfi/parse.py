@@ -1,12 +1,10 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 
 
 __license__ = 'GPL v3'
 __copyright__ = '2014, Kovid Goyal <kovid at kovidgoyal.net>'
 
 import regex
-from polyglot.builtins import map, zip
 
 
 class Parser:
@@ -19,16 +17,19 @@ class Parser:
     def __init__(self):
         # All allowed unicode characters + escaped special characters
         special_char = r'[\[\](),;=^]'
-        unescaped_char = '[[\t\n\r -\ud7ff\ue000-\ufffd\U00010000-\U0010ffff]--%s]' % special_char
-        escaped_char = r'\^' + special_char
-        chars = r'(?:%s|(?:%s))+' % (unescaped_char, escaped_char)
+        unescaped_char = f'[[\t\n\r -\ud7ff\ue000-\ufffd\U00010000-\U0010ffff]--{special_char}]'
+        # calibre used to escape hyphens as well, so recognize them even though
+        # not strictly spec compliant
+        escaped_char = r'\^' + special_char[:-1] + '-]'
+        chars = fr'(?:{unescaped_char}|(?:{escaped_char}))+'
         chars_no_space = chars.replace('0020', '0021')
         # No leading zeros allowed for integers
         integer = r'(?:[1-9][0-9]*)|0'
         # No leading zeros, except for numbers in (0, 1) and no trailing zeros for the fractional part
-        frac = r'\.[0-9]*[1-9]'
+        frac = r'\.[0-9]{1,}'
         number = r'(?:[1-9][0-9]*(?:{0})?)|(?:0{0})|(?:0)'.format(frac)
-        c = lambda x:regex.compile(x, flags=regex.VERSION1)
+        def c(x):
+            return regex.compile(x, flags=regex.VERSION1)
 
         # A step of the form /integer
         self.step_pat = c(r'/(%s)' % integer)
@@ -47,11 +48,11 @@ class Parser:
         # Text assertion patterns
         self.ta1_pat = c(r'({0})(?:,({0})){{0,1}}'.format(chars))
         self.ta2_pat = c(r',(%s)' % chars)
-        self.parameters_pat = c(r'(?:;(%s)=((?:%s,?)+))+' % (chars_no_space, chars))
+        self.parameters_pat = c(fr'(?:;({chars_no_space})=((?:{chars},?)+))+')
         self.csv_pat = c(r'(?:(%s),?)+' % chars)
 
         # Unescape characters
-        unescape_pat = c(r'%s(%s)' % (escaped_char[:2], escaped_char[2:]))
+        unescape_pat = c(fr'{escaped_char[:2]}({escaped_char[2:]})')
         self.unescape = lambda x: unescape_pat.sub(r'\1', x)
 
     def parse_epubcfi(self, raw):
@@ -238,3 +239,8 @@ def decode_cfi(root, cfi):
         else:
             return
     return ans
+
+
+if __name__ == '__main__':
+    import sys
+    print(cfi_sort_key(sys.argv[-1], only_path=False))

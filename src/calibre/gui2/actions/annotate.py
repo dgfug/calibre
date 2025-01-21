@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 __license__   = 'GPL v3'
@@ -7,13 +6,13 @@ __copyright__ = '2010, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
 
-from qt.core import pyqtSignal, QModelIndex, QThread, Qt
+from qt.core import QModelIndex, Qt, QThread, pyqtSignal
 
+from calibre.devices.usbms.device import Device
 from calibre.gui2 import error_dialog
 from calibre.gui2.actions import InterfaceAction
-from calibre.devices.usbms.device import Device
 from calibre.gui2.dialogs.progress import ProgressDialog
-from polyglot.builtins import iteritems, range, map
+from polyglot.builtins import iteritems
 
 
 class Updater(QThread):  # {{{
@@ -155,7 +154,7 @@ class FetchAnnotationsAction(InterfaceAction):
             entries = []
             for id_, tb in iteritems(errors):
                 title = id_
-                if isinstance(id_, type(1)):
+                if isinstance(id_, int):
                     title = db.title(id_, index_is_id=True)
                 entries.extend([title, tb, ''])
             error_dialog(self.gui, _('Some errors'),

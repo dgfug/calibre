@@ -1,4 +1,3 @@
-
 #########################################################################
 #                                                                       #
 #                                                                       #
@@ -11,7 +10,8 @@
 #                                                                       #
 #                                                                       #
 #########################################################################
-import sys, re
+import re
+import sys
 
 
 class FieldStrings:
@@ -81,7 +81,7 @@ class FieldStrings:
         'INCLUDETEXT'   :       (self.__include_text_func, 'include-text-from-file'),
         'INDEX'         :       (self.__index_func, 'index'),
         'NOTEREF'       :       (self.__note_ref_func, 'reference-to-note'),
-        'PAGEREF'	: (self.__page_ref_func, 'reference-to-page'),
+        'PAGEREF'       :       (self.__page_ref_func, 'reference-to-page'),
         'REF'           :       (self.__ref_func, 'reference'),
         'ref'           :       (self.__ref_func, 'reference'),
         'SEQ'           :       (self.__sequence_func, 'numbering-sequence'),
@@ -140,7 +140,7 @@ class FieldStrings:
             'Ordinal'       :   'ordinal',
             'CardText'      :   'cardinal-text',
             'OrdText'       :   'ordinal-text',
-            'Hex'           :   'hexidecimal',
+            'Hex'           :   'hexadecimal',
             'DollarText'    :   'dollar-text',
             'Upper'         :   'upper-case',
             'Lower'         :   'lower-case',
@@ -216,10 +216,10 @@ class FieldStrings:
             the_list = action(field_name, name, changed_string)
         else:
             # change -1 to 0--for now, I want users to report bugs
-            msg = 'no key for "%s" "%s"\n' % (field_name, changed_string)
+            msg = f'no key for "{field_name}" "{changed_string}"\n'
             sys.stderr.write(msg)
             if self.__run_level > 3:
-                msg = 'no key for "%s" "%s"\n' % (field_name, changed_string)
+                msg = f'no key for "{field_name}" "{changed_string}"\n'
                 raise self.__bug_handler(msg)
             the_list = self.__fall_back_func(field_name, line)
             return the_list
@@ -603,7 +603,7 @@ class FieldStrings:
         """
         fields = line.split()
         label = fields[1]
-        my_string = '%s<label>%s' % (name, label)
+        my_string = f'{name}<label>{label}'
         return [None, None, my_string]
 
     def __ta_func(self, field_name, name, line):

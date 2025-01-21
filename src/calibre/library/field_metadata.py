@@ -1,5 +1,3 @@
-
-
 '''
 Created on 25 May 2010
 
@@ -10,6 +8,8 @@ import traceback
 from collections import OrderedDict
 
 from calibre.utils.config_base import tweaks
+from calibre.utils.icu import lower as icu_lower
+from calibre.utils.localization import _, ngettext
 from polyglot.builtins import iteritems, itervalues
 
 category_icon_map = {
@@ -197,7 +197,7 @@ def _builtin_field_metadata():
                            'datatype':'int',
                            'is_multiple':{},
                            'kind':'field',
-                           'name':None,
+                           'name': _('Id'),
                            'search_terms':['id'],
                            'is_custom':False,
                            'is_category':False,
@@ -249,6 +249,16 @@ def _builtin_field_metadata():
                            'kind':'field',
                            'name': None,
                            'search_terms':['marked'],
+                           'is_custom':False,
+                           'is_category':False,
+                           'is_csp': False}),
+            ('in_tag_browser', {'table':None,
+                           'column':None,
+                           'datatype':'text',
+                           'is_multiple':{},
+                           'kind':'field',
+                           'name': None,
+                           'search_terms':['in_tag_browser'],
                            'is_custom':False,
                            'is_category':False,
                            'is_csp': False}),
@@ -385,6 +395,7 @@ class FieldMetadata:
 
     # search labels that are not db columns
     search_items = ['all', 'search', 'vl', 'template']
+    custom_field_prefix = '#'
     __calibre_serializable__ = True
 
     def __init__(self):
@@ -407,7 +418,6 @@ class FieldMetadata:
                         'date_format': tweaks['gui_pubdate_display_format']}
         self._tb_cats['last_modified']['display'] = {
                         'date_format': tweaks['gui_last_modified_display_format']}
-        self.custom_field_prefix = '#'
         self.get = self._tb_cats.get
 
     def __getitem__(self, key):
@@ -422,8 +432,7 @@ class FieldMetadata:
         del self._tb_cats[key]
 
     def __iter__(self):
-        for key in self._tb_cats:
-            yield key
+        yield from self._tb_cats
 
     def __contains__(self, key):
         return key in self._tb_cats or key == 'title_sort'
@@ -463,7 +472,7 @@ class FieldMetadata:
         return [k for k in self._tb_cats.keys()
                 if self._tb_cats[k]['kind']=='field' and
                    self._tb_cats[k]['datatype'] is not None and
-                   k not in ('au_map', 'marked', 'ondevice', 'cover', 'series_sort') and
+                   k not in ('au_map', 'marked', 'ondevice', 'cover', 'series_sort', 'in_tag_browser') and
                    not self.is_series_index(k)]
 
     def standard_field_keys(self):
@@ -484,8 +493,7 @@ class FieldMetadata:
         return [k for k in self._tb_cats.keys() if self._tb_cats[k]['kind']=='field']
 
     def iterkeys(self):
-        for key in self._tb_cats:
-            yield key
+        yield from self._tb_cats
 
     def itervalues(self):
         return itervalues(self._tb_cats)
@@ -499,8 +507,7 @@ class FieldMetadata:
     iter_items = iteritems
 
     def custom_iteritems(self):
-        for key, meta in iteritems(self._tb_custom_fields):
-            yield (key, meta)
+        yield from iteritems(self._tb_custom_fields)
 
     def items(self):
         return list(self.iter_items())

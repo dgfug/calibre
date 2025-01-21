@@ -1,24 +1,21 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:fdm=marker:ai
 
 
 __license__   = 'GPL v3'
 __copyright__ = '2012, Kovid Goyal <kovid at kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import hashlib, numbers
-from polyglot.builtins import map, iteritems
+import hashlib
+import numbers
 
-from qt.core import QBuffer, QByteArray, QImage, Qt, QColor, qRgba, QPainter
+from qt.core import QBuffer, QByteArray, QColor, QImage, QPainter, Qt, qRgba
 
-from calibre.constants import (__appname__, __version__)
-from calibre.ebooks.pdf.render.common import (
-    Reference, EOL, serialize, Stream, Dictionary, String, Name, Array,
-    fmtnum)
+from calibre.constants import __appname__, __version__
+from calibre.ebooks.pdf.render.common import EOL, Array, Dictionary, Name, Reference, Stream, String, fmtnum, serialize
 from calibre.ebooks.pdf.render.fonts import FontManager
 from calibre.ebooks.pdf.render.links import Links
 from calibre.utils.date import utcnow
-from polyglot.builtins import as_unicode
+from polyglot.builtins import as_unicode, iteritems
 
 PDFVER = b'%PDF-1.4'  # 1.4 is needed for XMP metadata
 
@@ -83,7 +80,7 @@ class IndirectObjects:
 class Page(Stream):
 
     def __init__(self, parentref, *args, **kwargs):
-        super(Page, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.page_dict = Dictionary({
             'Type': Name('Page'),
             'Parent': parentref,
@@ -173,14 +170,14 @@ class Path:
 class Catalog(Dictionary):
 
     def __init__(self, pagetree):
-        super(Catalog, self).__init__({'Type':Name('Catalog'),
+        super().__init__({'Type':Name('Catalog'),
             'Pages': pagetree})
 
 
 class PageTree(Dictionary):
 
     def __init__(self, page_size):
-        super(PageTree, self).__init__({'Type':Name('Pages'),
+        super().__init__({'Type':Name('Pages'),
             'MediaBox':Array([0, 0, page_size[0], page_size[1]]),
             'Kids':Array(), 'Count':0,
         })
@@ -278,7 +275,7 @@ class PDFStream:
         self.stream = HashingStream(stream)
         self.compress = compress
         self.write_line(PDFVER)
-        self.write_line(u'%íì¦"'.encode('utf-8'))
+        self.write_line('%íì¦"'.encode())
         creator = ('%s %s [https://calibre-ebook.com]'%(__appname__,
                                     __version__))
         self.write_line('%% Created by %s'%creator)
@@ -417,8 +414,8 @@ class PDFStream:
         self.objects.commit(r, self.stream)
         return r
 
-    def add_jpeg_image(self, img_data, w, h, cache_key=None):
-        return self.write_image(img_data, w, h, 32, dct=True)
+    def add_jpeg_image(self, img_data, w, h, cache_key=None, depth=32):
+        return self.write_image(img_data, w, h, depth, dct=True)
 
     def add_image(self, img, cache_key):
         ref = self.get_image(cache_key)

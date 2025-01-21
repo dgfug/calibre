@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-
 __license__   = 'GPL v3'
 __copyright__ = '2009, John Schember <john at nachtimwald.com>'
 __docformat__ = 'restructuredtext en'
@@ -12,11 +9,11 @@ Device driver for Bookeen's Cybook Gen 3 and Opus and Orizon
 import os
 import re
 
+import calibre.devices.cybook.t2b as t2b
+import calibre.devices.cybook.t4b as t4b
 from calibre import fsync
 from calibre.constants import isunix
 from calibre.devices.usbms.driver import USBMS
-import calibre.devices.cybook.t2b as t2b
-import calibre.devices.cybook.t4b as t4b
 
 
 class CYBOOK(USBMS):
@@ -52,7 +49,7 @@ class CYBOOK(USBMS):
             coverdata = coverdata[2]
         else:
             coverdata = None
-        with lopen('%s_6090.t2b' % os.path.join(path, filename), 'wb') as t2bfile:
+        with open('%s_6090.t2b' % os.path.join(path, filename), 'wb') as t2bfile:
             t2b.write_t2b(t2bfile, coverdata)
             fsync(t2bfile)
 
@@ -92,7 +89,7 @@ class ORIZON(CYBOOK):
             coverdata = coverdata[2]
         else:
             coverdata = None
-        with lopen('%s.thn' % filepath, 'wb') as thnfile:
+        with open('%s.thn' % filepath, 'wb') as thnfile:
             t4b.write_t4b(thnfile, coverdata)
             fsync(thnfile)
 

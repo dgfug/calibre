@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
-
 __license__ = 'GPL 3'
 __copyright__ = '2009, John Schember <john@nachtimwald.com>'
 __docformat__ = 'restructuredtext en'
 
 import re
-from polyglot.builtins import int_to_byte, range
+
+from polyglot.builtins import int_to_byte
 
 
 class TCRCompressor:

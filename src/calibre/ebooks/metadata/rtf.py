@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 # License: GPLv3 Copyright: 2008, Kovid Goyal <kovid at kovidgoyal.net>
 
 """
@@ -11,7 +10,7 @@ import re
 
 from calibre import force_unicode
 from calibre.ebooks.metadata import MetaInformation
-from polyglot.builtins import codepoint_to_chr, string_or_bytes, unicode_type, int_to_byte, filter
+from polyglot.builtins import codepoint_to_chr, int_to_byte, string_or_bytes
 
 title_pat    = re.compile(br'\{\\info.*?\{\\title(.*?)(?<!\\)\}', re.DOTALL)
 author_pat   = re.compile(br'\{\\info.*?\{\\author(.*?)(?<!\\)\}', re.DOTALL)
@@ -79,9 +78,9 @@ def detect_codepage(stream):
 
 
 def encode(unistr):
-    if not isinstance(unistr, unicode_type):
+    if not isinstance(unistr, str):
         unistr = force_unicode(unistr)
-    return ''.join(c if ord(c) < 128 else '\\u{}?'.format(ord(c)) for c in unistr)
+    return ''.join(c if ord(c) < 128 else f'\\u{ord(c)}?' for c in unistr)
 
 
 def decode(raw, codec):
@@ -173,7 +172,7 @@ def create_metadata(stream, options):
         publisher = encode(options.publisher)
         md.append(r'{\manager %s}'%(publisher,))
     if options.tags:
-        tags = u', '.join(options.tags)
+        tags = ', '.join(options.tags)
         tags = encode(tags)
         md.append(r'{\category %s}'%(tags,))
     if len(md) > 1:
@@ -232,6 +231,7 @@ def set_metadata(stream, options):
 def find_tests():
     import unittest
     from io import BytesIO
+
     from calibre.ebooks.metadata.book.base import Metadata
 
     class Test(unittest.TestCase):

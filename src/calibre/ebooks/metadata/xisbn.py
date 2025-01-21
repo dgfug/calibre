@@ -1,12 +1,13 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 __license__   = 'GPL v3'
 __copyright__ = '2010, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import threading, re, json
+import json
+import re
+import threading
 
 from calibre import browser
 
@@ -52,8 +53,7 @@ class xISBN:
 
     def isbns_in_data(self, data):
         for rec in data:
-            for i in rec.get('isbn', []):
-                yield i
+            yield from rec.get('isbn', [])
 
     def get_data(self, isbn):
         isbn = self.purify(isbn)
@@ -103,7 +103,8 @@ class xISBN:
 xisbn = xISBN()
 
 if __name__ == '__main__':
-    import sys, pprint
+    import pprint
+    import sys
     isbn = sys.argv[-1]
     print(pprint.pprint(xisbn.get_data(isbn)))
     print()

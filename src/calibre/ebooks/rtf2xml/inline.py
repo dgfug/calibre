@@ -1,8 +1,9 @@
-
-import sys, os
+import os
+import sys
 
 from calibre.ebooks.rtf2xml import copy
 from calibre.ptempfile import better_mktemp
+
 from . import open_for_read, open_for_write
 
 """
@@ -320,7 +321,7 @@ class Inline:
                     self.__write_obj.write('mi<tg<open-att__<inline')
                     for the_key in the_keys:
                         if the_key != 'contains_inline':
-                            self.__write_obj.write('<%s>%s' % (the_key, the_dict[the_key]))
+                            self.__write_obj.write(f'<{the_key}>{the_dict[the_key]}')
                     self.__write_obj.write('\n')
         self.__groups_in_waiting[0] = 0
 
@@ -377,7 +378,7 @@ class Inline:
                 self.__write_obj.write('mi<tg<open-att__<inline')
                 for the_key in the_keys:
                     if the_key != 'contains_inline':
-                        self.__write_obj.write('<%s>%s' % (the_key, the_dict[the_key]))
+                        self.__write_obj.write(f'<{the_key}>{the_dict[the_key]}')
                 self.__write_obj.write('\n')
         self.__groups_in_waiting[0] = 0
 

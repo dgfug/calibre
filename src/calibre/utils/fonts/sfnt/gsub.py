@@ -1,19 +1,16 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:fdm=marker:ai
 
 
 __license__   = 'GPL v3'
 __copyright__ = '2012, Kovid Goyal <kovid at kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-from struct import unpack_from
 from functools import partial
+from struct import unpack_from
 
-from calibre.utils.fonts.sfnt import UnknownTable, FixedProperty
+from calibre.utils.fonts.sfnt import FixedProperty, UnknownTable
+from calibre.utils.fonts.sfnt.common import ExtensionSubstitution, FeatureListTable, LookupTable, ScriptListTable, SimpleListTable, UnknownLookupSubTable
 from calibre.utils.fonts.sfnt.errors import UnsupportedFont
-from calibre.utils.fonts.sfnt.common import (ScriptListTable, FeatureListTable,
-        SimpleListTable, LookupTable, ExtensionSubstitution,
-        UnknownLookupSubTable)
 from polyglot.builtins import iteritems, itervalues
 
 

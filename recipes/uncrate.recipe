@@ -6,8 +6,8 @@ __copyright__ = '2009, Darko Miletic <darko.miletic at gmail.com>'
 www.uncrate.com
 '''
 
-from calibre.web.feeds.recipes import BasicNewsRecipe
 from calibre.ebooks.BeautifulSoup import Tag
+from calibre.web.feeds.recipes import BasicNewsRecipe
 
 
 def new_tag(soup, name, attrs=()):
@@ -28,7 +28,7 @@ class Uncrate(BasicNewsRecipe):
     encoding = 'utf-8'
     publisher = 'Zombie corp.'
     category = 'news, gadgets, clothes, cars, DVDs'
-    lang = 'en-US'
+    lang = 'en'
     language = 'en'
 
     html2lrf_options = [

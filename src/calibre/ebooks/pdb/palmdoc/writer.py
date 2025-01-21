@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-
 '''
 Writer content to palmdoc pdb file.
 '''
@@ -13,8 +10,8 @@ import struct
 
 from calibre.ebooks.pdb.formatwriter import FormatWriter
 from calibre.ebooks.pdb.header import PdbHeaderBuilder
-from calibre.ebooks.txt.txtml import TXTMLizer
 from calibre.ebooks.txt.newlines import TxtNewlines, specified_newlines
+from calibre.ebooks.txt.txtml import TXTMLizer
 
 MAX_RECORD_SIZE = 4096
 

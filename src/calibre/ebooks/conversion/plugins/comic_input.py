@@ -1,5 +1,3 @@
-
-
 __license__   = 'GPL v3'
 __copyright__ = '2008, Kovid Goyal kovid@kovidgoyal.net'
 __docformat__ = 'restructuredtext en'
@@ -8,19 +6,21 @@ __docformat__ = 'restructuredtext en'
 Based on ideas from comiclrf created by FangornUK.
 '''
 
-import shutil, textwrap, codecs, os
+import codecs
+import os
+import shutil
+import textwrap
 
-from calibre.customize.conversion import InputFormatPlugin, OptionRecommendation
 from calibre import CurrentDir
+from calibre.customize.conversion import InputFormatPlugin, OptionRecommendation
 from calibre.ptempfile import PersistentTemporaryDirectory
-from polyglot.builtins import getcwd, map
 
 
 class ComicInput(InputFormatPlugin):
 
     name        = 'Comic Input'
     author      = 'Kovid Goyal'
-    description = _('Optimize comic files (.cbz, .cbr, .cbc) for viewing on portable devices')
+    description = _('Optimize comic files (.cbz, .cbr, .cb7, .cbc) for viewing on portable devices')
     file_types  = {'cbz', 'cbr', 'cb7', 'cbc'}
     is_image_collection = True
     commit_name = 'comic_input'
@@ -66,7 +66,7 @@ class ComicInput(InputFormatPlugin):
         OptionRecommendation(name='dont_grayscale', recommended_value=False,
             help=_('Do not convert the image to grayscale (black and white)')),
         OptionRecommendation(name='comic_image_size', recommended_value=None,
-            help=_('Specify the image size as widthxheight pixels. Normally,'
+            help=_('Specify the image size as width x height pixels, for example: 123x321. Normally,'
                 ' an image size is automatically calculated from the output '
                 'profile, this option overrides it.')),
         OptionRecommendation(name='dont_add_comic_pages_to_toc', recommended_value=False,
@@ -129,8 +129,7 @@ class ComicInput(InputFormatPlugin):
         return comics
 
     def get_pages(self, comic, tdir2):
-        from calibre.ebooks.comic.input import (extract_comic,  process_pages,
-                find_pages)
+        from calibre.ebooks.comic.input import extract_comic, find_pages, process_pages
         tdir  = extract_comic(comic)
         new_pages = find_pages(tdir, sort_on_mtime=self.opts.no_sort,
                 verbose=self.opts.verbose)
@@ -198,7 +197,7 @@ class ComicInput(InputFormatPlugin):
 
         mi  = MetaInformation(os.path.basename(stream.name).rpartition('.')[0],
             [_('Unknown')])
-        opf = OPFCreator(getcwd(), mi)
+        opf = OPFCreator(os.getcwd(), mi)
         entries = []
 
         def href(x):
@@ -231,7 +230,7 @@ class ComicInput(InputFormatPlugin):
             if self.for_viewer:
                 wrapper_page_href = href(wrappers[0])
                 for i in range(num_pages_per_comic[0]):
-                    toc.add_item('{}#page_{}'.format(wrapper_page_href, i+1), None,
+                    toc.add_item(f'{wrapper_page_href}#page_{i+1}', None,
                         _('Page')+' %d'%(i+1), play_order=i)
 
             else:
@@ -249,7 +248,7 @@ class ComicInput(InputFormatPlugin):
                     if self.for_viewer:
                         wrapper_page_href = href(wrappers[0])
                         for i in range(num_pages):
-                            stoc.add_item('{}#page_{}'.format(wrapper_page_href, i+1), None,
+                            stoc.add_item(f'{wrapper_page_href}#page_{i+1}', None,
                                     _('Page')+' %d'%(i+1), play_order=po)
                             po += 1
                     else:
@@ -296,32 +295,32 @@ class ComicInput(InputFormatPlugin):
         from calibre.ebooks.oeb.base import XHTML_NS
 
         def page(pnum, src):
-            return '<img id="page_{}" src="{}"></img>'.format(pnum + 1, os.path.basename(src))
+            return f'<img id="page_{pnum + 1}" src="{os.path.basename(src)}"></img>'
 
         pages = '\n'.join(page(i, src) for i, src in enumerate(pages))
         base = os.path.dirname(pages[0])
         wrapper = '''
-        <html xmlns="%s">
+        <html xmlns="{}">
             <head>
                 <meta charset="utf-8"/>
                 <style type="text/css">
-                html, body, img { height: 100vh; display: block; margin: 0; padding: 0; border-width: 0; }
-                img {
-                    width: 100%%; height: 100%%;
+                html, body, img {{ height: 100vh; display: block; margin: 0; padding: 0; border-width: 0; }}
+                img {{
+                    width: 100%; height: 100%;
                     object-fit: contain;
                     margin-left: auto; margin-right: auto;
                     max-width: 100vw; max-height: 100vh;
-                    top: 50vh; transform: translateY(-50%%);
+                    top: 50vh; transform: translateY(-50%);
                     position: relative;
                     page-break-after: always;
-                }
+                }}
                 </style>
             </head>
             <body>
-            %s
+            {}
             </body>
         </html>
-        ''' % (XHTML_NS, pages)
+        '''.format(XHTML_NS, pages)
         path = os.path.join(base, cdir, 'wrapper.xhtml')
         with open(path, 'wb') as f:
             f.write(wrapper.encode('utf-8'))

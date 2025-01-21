@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:fdm=marker:ai
 
 
 __license__   = 'GPL v3'
@@ -7,12 +6,11 @@ __copyright__ = '2012, Kovid Goyal <kovid at kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
 import array
-from struct import unpack_from, pack, calcsize
+from struct import calcsize, pack, unpack_from
 
-from calibre.utils.fonts.sfnt import UnknownTable, DateTimeProperty, FixedProperty
+from calibre.utils.fonts.sfnt import DateTimeProperty, FixedProperty, UnknownTable
 from calibre.utils.fonts.sfnt.errors import UnsupportedFont
 from calibre.utils.fonts.sfnt.loca import read_array
-from polyglot.builtins import zip
 
 
 class HeadTable(UnknownTable):
@@ -23,7 +21,7 @@ class HeadTable(UnknownTable):
     font_revision = FixedProperty('_font_revision')
 
     def __init__(self, *args, **kwargs):
-        super(HeadTable, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         field_types = (
                 '_version_number' , 'l',

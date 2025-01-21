@@ -1,16 +1,14 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:fdm=marker:ai
 
 
 __license__   = 'GPL v3'
 __copyright__ = '2012, Kovid Goyal <kovid at kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-from struct import pack
 from collections import OrderedDict
+from struct import pack
 
 from calibre.utils.fonts.sfnt.cff.constants import cff_standard_strings
-from polyglot.builtins import range
 
 
 class Index(list):

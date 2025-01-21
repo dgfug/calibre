@@ -1,13 +1,12 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 
 
 __license__ = 'GPL v3'
 __copyright__ = '2013, Kovid Goyal <kovid at kovidgoyal.net>'
 
 from collections import OrderedDict
-from calibre.ebooks.docx.block_styles import (  # noqa
-    inherit, simple_color, LINE_STYLES, simple_float, binary_property, read_shd)
+
+from calibre.ebooks.docx.block_styles import LINE_STYLES, binary_property, inherit, read_shd, simple_color, simple_float  # noqa
 
 # Read from XML {{{
 
@@ -110,7 +109,18 @@ def read_underline(parent, dest, XPath, get):
     for col in XPath('./w:u[@w:val]')(parent):
         val = get(col, 'w:val')
         if val:
-            ans = val if val == 'none' else 'underline'
+            style = {
+                'dotted': 'dotted', 'dash': 'dashed', 'dashDotDotHeavy': 'dotted', 'dashDotHeavy': 'dashed', 'dashedHeavy': 'dashed',
+                'dashLong': 'dashed', 'dashLongHeavy': 'dashed', 'dotDash': 'dotted', 'dotDotDash': 'dotted', 'dottedHeavy': 'dotted',
+                'double': 'double', 'none': 'none', 'single': 'solid', 'thick': 'solid', 'wave': 'wavy', 'wavyDouble': 'wavy',
+                'wavyHeavy': 'wavy', 'words': 'solid'}.get(val, 'solid')
+            if style == 'none':
+                ans = 'none'
+            else:
+                ans = 'underline ' + style
+                color = get(col, 'w:color')
+                if color and color != 'auto':
+                    ans += ' #' + color
     setattr(dest, 'text_decoration', ans)
 
 

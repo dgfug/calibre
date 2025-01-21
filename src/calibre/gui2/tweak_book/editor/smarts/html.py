@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 
 
 __license__ = 'GPL v3'
@@ -8,26 +7,31 @@ __copyright__ = '2014, Kovid Goyal <kovid at kovidgoyal.net>'
 import re
 import sys
 from contextlib import contextmanager
-from css_parser import parseStyle
 from itertools import chain
 from operator import itemgetter
+
+from css_parser import parseStyle
 from qt.core import Qt, QTextCursor, QTextEdit
 
 from calibre import prepare_string_for_xml, xml_entity_to_unicode
 from calibre.ebooks.oeb.base import css_text
 from calibre.ebooks.oeb.polish.container import OEB_DOCS
+from calibre.ebooks.oeb.polish.utils import BLOCK_TAG_NAMES
 from calibre.gui2 import error_dialog
 from calibre.gui2.tweak_book import current_container, tprefs
 from calibre.gui2.tweak_book.editor.smarts import NullSmarts
 from calibre.gui2.tweak_book.editor.smarts.utils import (
-    expand_tabs, get_leading_whitespace_on_block, get_text_after_cursor,
-    get_text_before_cursor, no_modifiers, smart_backspace, smart_home, smart_tab
+    expand_tabs,
+    get_leading_whitespace_on_block,
+    get_text_after_cursor,
+    get_text_before_cursor,
+    no_modifiers,
+    smart_backspace,
+    smart_home,
+    smart_tab,
 )
-from calibre.gui2.tweak_book.editor.syntax.html import (
-    ATTR_END, ATTR_NAME, ATTR_START, ATTR_VALUE
-)
+from calibre.gui2.tweak_book.editor.syntax.html import ATTR_END, ATTR_NAME, ATTR_START, ATTR_VALUE
 from calibre.utils.icu import utf16_length
-from polyglot.builtins import unicode_type
 
 get_offset = itemgetter(0)
 PARAGRAPH_SEPARATOR = '\u2029'
@@ -46,7 +50,7 @@ class Tag:
         self.self_closing = self_closing
 
     def __repr__(self):
-        return '<%s start_block=%s start_offset=%s end_block=%s end_offset=%s self_closing=%s>' % (
+        return '<{} start_block={} start_offset={} end_block={} end_offset={} self_closing={}>'.format(
             self.name, self.start_block.blockNumber(), self.start_offset, self.end_block.blockNumber(), self.end_offset, self.self_closing)
     __str__ = __repr__
 
@@ -86,7 +90,8 @@ def find_closest_containing_tag(block, offset, max_tags=sys.maxsize):
     ''' Find the closest containing tag. To find it, we search for the first
     opening tag that does not have a matching closing tag before the specified
     position. Search through at most max_tags. '''
-    prev_tag_boundary = lambda b, o: next_tag_boundary(b, o, forward=False)
+    def prev_tag_boundary(b, o):
+        return next_tag_boundary(b, o, forward=False)
 
     block, boundary = prev_tag_boundary(block, offset)
     if block is None:
@@ -234,7 +239,7 @@ def rename_tag(cursor, opening_tag, closing_tag, new_name, insert=False):
     with edit_block(cursor):
         text = select_tag(cursor, closing_tag)
         if insert:
-            text = '</%s>%s' % (new_name, text)
+            text = f'</{new_name}>{text}'
         else:
             text = re.sub(r'^<\s*/\s*[a-zA-Z0-9]+', '</%s' % new_name, text)
         cursor.insertText(text)
@@ -275,7 +280,7 @@ def ensure_not_within_tag_definition(cursor, forward=True):
     if boundary.is_start:
         # We are inside a tag
         if forward:
-            block, boundary = next_tag_boundary(block, offset)
+            block, boundary = next_tag_boundary(block, max(0, offset-1))
             if block is not None:
                 cursor.setPosition(block.position() + boundary.offset + 1)
                 return True
@@ -284,13 +289,6 @@ def ensure_not_within_tag_definition(cursor, forward=True):
             return True
 
     return False
-
-
-BLOCK_TAG_NAMES = frozenset((
-    'address', 'article', 'aside', 'blockquote', 'center', 'dir', 'fieldset',
-    'isindex', 'menu', 'noframes', 'hgroup', 'noscript', 'pre', 'section',
-    'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'header', 'p', 'div', 'dd', 'dl', 'ul',
-    'ol', 'li', 'body', 'td', 'th'))
 
 
 def find_closest_containing_block_tag(block, offset, block_tag_names=BLOCK_TAG_NAMES):
@@ -354,10 +352,10 @@ class Smarts(NullSmarts):
             a = QTextEdit.ExtraSelection()
             a.cursor, a.format = editor.textCursor(), editor.match_paren_format
             a.cursor.setPosition(tag.start_block.position()), a.cursor.movePosition(QTextCursor.MoveOperation.EndOfBlock, QTextCursor.MoveMode.KeepAnchor)
-            text = unicode_type(a.cursor.selectedText())
+            text = str(a.cursor.selectedText())
             start_pos = utf16_length(text[:tag.start_offset])
             a.cursor.setPosition(tag.end_block.position()), a.cursor.movePosition(QTextCursor.MoveOperation.EndOfBlock, QTextCursor.MoveMode.KeepAnchor)
-            text = unicode_type(a.cursor.selectedText())
+            text = str(a.cursor.selectedText())
             end_pos = utf16_length(text[:tag.end_offset + 1])
             a.cursor.setPosition(tag.start_block.position() + start_pos)
             a.cursor.setPosition(tag.end_block.position() + end_pos, QTextCursor.MoveMode.KeepAnchor)
@@ -487,6 +485,7 @@ class Smarts(NullSmarts):
         template = template.replace('_TEXT_', text or '')
         editor.highlighter.join()
         c = editor.textCursor()
+        c.beginEditBlock()
         if c.hasSelection():
             c.insertText('')  # delete any existing selected text
         ensure_not_within_tag_definition(c)
@@ -494,17 +493,22 @@ class Smarts(NullSmarts):
         c.insertText(template)
         c.setPosition(p)  # ensure cursor is positioned inside the newly created tag
         editor.setTextCursor(c)
+        c.endEditBlock()
 
     def insert_tag(self, editor, name):
+        m = re.match(r'[a-zA-Z0-9:-]+', name)
+        cname = name if m is None else m.group()
+        self.surround_with_custom_tag(editor, f'<{name}>', f'</{cname}>')
+
+    def surround_with_custom_tag(self, editor, opent, close):
         editor.highlighter.join()
-        name = name.lstrip()
         text = self.get_smart_selection(editor, update=True)
         c = editor.textCursor()
         pos = min(c.position(), c.anchor())
-        m = re.match(r'[a-zA-Z0-9:-]+', name)
-        cname = name if m is None else m.group()
-        c.insertText('<{0}>{1}</{2}>'.format(name, text, cname))
-        c.setPosition(pos + 2 + len(name))
+        sellen = abs(c.position() - c.anchor())
+        c.insertText(f'{opent}{text}{close}')
+        c.setPosition(pos + len(opent))
+        c.setPosition(c.position() + sellen, QTextCursor.MoveMode.KeepAnchor)
         editor.setTextCursor(c)
 
     def verify_for_spellcheck(self, cursor, highlighter):
@@ -677,6 +681,11 @@ class Smarts(NullSmarts):
         ev_text = ev.text()
         key = ev.key()
         is_xml = editor.syntax == 'xml'
+        mods = ev.modifiers() & (
+            Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier | Qt.KeyboardModifier.MetaModifier | Qt.KeyboardModifier.KeypadModifier)
+        shifted_mods = ev.modifiers() & (
+            Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier | Qt.KeyboardModifier.MetaModifier |
+            Qt.KeyboardModifier.KeypadModifier | Qt.KeyboardModifier.ShiftModifier)
 
         if tprefs['replace_entities_as_typed'] and (
                 ';' in ev_text or
@@ -723,8 +732,7 @@ class Smarts(NullSmarts):
         if key == Qt.Key.Key_Home and smart_home(editor, ev):
             return True
 
-        if key == Qt.Key.Key_Tab:
-            mods = ev.modifiers()
+        if key in (Qt.Key.Key_Tab, Qt.Key.Key_Backtab):
             if not mods & Qt.KeyboardModifier.ControlModifier and smart_tab(editor, ev):
                 return True
 
@@ -732,11 +740,11 @@ class Smarts(NullSmarts):
             return True
 
         if key in (Qt.Key.Key_BraceLeft, Qt.Key.Key_BraceRight):
-            mods = ev.modifiers()
-            if int(mods & Qt.KeyboardModifier.ControlModifier):
+            if mods == Qt.KeyboardModifier.ControlModifier:
                 if self.jump_to_enclosing_tag(editor, key == Qt.Key.Key_BraceLeft):
                     return True
-        if key == Qt.Key.Key_T and int(ev.modifiers() & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier)):
+        if key == Qt.Key.Key_T and shifted_mods in (
+                Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier, Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier):
             return self.select_tag_contents(editor)
 
         return False
@@ -877,7 +885,7 @@ class Smarts(NullSmarts):
 if __name__ == '__main__':  # {{{
     from calibre.gui2.tweak_book.editor.widget import launch_editor
     if sys.argv[-1].endswith('.html'):
-        raw = lopen(sys.argv[-1], 'rb').read().decode('utf-8')
+        raw = open(sys.argv[-1], 'rb').read().decode('utf-8')
     else:
         raw = '''\
 <!DOCTYPE html>

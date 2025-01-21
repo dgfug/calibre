@@ -1,20 +1,22 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 
 
 __license__ = 'GPL v3'
 __copyright__ = '2015, Kovid Goyal <kovid at kovidgoyal.net>'
 
-import os, sys, time, traceback
+import os
+import sys
+import time
+import traceback
 from threading import Thread
 
-
 from calibre import guess_type, prints
-from calibre.constants import is64bit, isportable, isfrozen, __version__, DEBUG
-from calibre.utils.winreg.lib import Key, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE
+from calibre.constants import DEBUG, __version__, isfrozen, isportable
+from calibre.utils.localization import _
 from calibre.utils.lock import singleinstance
-from polyglot.builtins import iteritems, itervalues
+from calibre.utils.winreg.lib import HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, Key
 from calibre_extensions import winutil
+from polyglot.builtins import iteritems, itervalues
 
 # See https://msdn.microsoft.com/en-us/library/windows/desktop/cc144154(v=vs.85).aspx
 
@@ -24,25 +26,25 @@ def default_programs():
         'calibre.exe': {
             'icon_id':'main_icon',
             'description': _('The main calibre program, used to manage your collection of e-books'),
-            'capability_name': 'calibre' + ('64bit' if is64bit else ''),
-            'name': 'calibre' + (' 64-bit' if is64bit else ''),
-            'assoc_name': 'calibre' + ('64bit' if is64bit else ''),
+            'capability_name': 'calibre64bit',
+            'name': 'calibre 64-bit',
+            'assoc_name': 'calibre64bit',
         },
 
         'ebook-edit.exe': {
             'icon_id':'editor_icon',
             'description': _('The calibre E-book editor. It can be used to edit common e-book formats.'),
-            'capability_name': 'Editor' + ('64bit' if is64bit else ''),
-            'name': 'calibre Editor' + (' 64-bit' if is64bit else ''),
-            'assoc_name': 'calibreEditor' + ('64bit' if is64bit else ''),
+            'capability_name': 'Editor64bit',
+            'name': 'calibre Editor 64-bit',
+            'assoc_name': 'calibreEditor64bit',
         },
 
         'ebook-viewer.exe': {
             'icon_id':'viewer_icon',
             'description': _('The calibre E-book viewer. It can view most known e-book formats.'),
-            'capability_name': 'Viewer' + ('64bit' if is64bit else ''),
-            'name': 'calibre Viewer' + (' 64-bit' if is64bit else ''),
-            'assoc_name': 'calibreViewer' + ('64bit' if is64bit else ''),
+            'capability_name': 'Viewer64bit',
+            'name': 'calibre Viewer 64-bit',
+            'assoc_name': 'calibreViewer64bit',
         },
     }
 
@@ -50,6 +52,7 @@ def default_programs():
 def extensions(basename):
     if basename == 'calibre.exe':
         from calibre.ebooks import BOOK_EXTENSIONS
+
         # We remove rar and zip as they interfere with 7-zip associations
         # https://www.mobileread.com/forums/showthread.php?t=256459
         return set(BOOK_EXTENSIONS) - {'rar', 'zip'}
@@ -57,8 +60,8 @@ def extensions(basename):
         from calibre.customize.ui import all_input_formats
         return set(all_input_formats())
     if basename == 'ebook-edit.exe':
-        from calibre.ebooks.oeb.polish.main import SUPPORTED
         from calibre.ebooks.oeb.polish.import_book import IMPORTABLE
+        from calibre.ebooks.oeb.polish.main import SUPPORTED
         return SUPPORTED | IMPORTABLE
 
 
@@ -95,7 +98,7 @@ def create_prog_id(ext, prog_id, ext_map, exe):
 
 
 def progid_name(assoc_name, ext):
-    return '%s.AssocFile.%s' % (assoc_name, ext.upper())
+    return f'{assoc_name}.AssocFile.{ext.upper()}'
 
 
 def cap_path(data):

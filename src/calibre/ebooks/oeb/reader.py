@@ -6,28 +6,53 @@ Container-/OPF-based input OEBBook reader.
 __license__   = 'GPL v3'
 __copyright__ = '2008, Marshall T. Vandegrift <llasram@gmail.com>'
 
-import sys, os, uuid, copy, re, io
+import copy
+import io
+import os
+import re
+import sys
+import uuid
 from collections import defaultdict
 
 from lxml import etree
 
-from calibre.ebooks.oeb.base import OPF1_NS, OPF2_NS, OPF2_NSMAP, DC11_NS, \
-    DC_NSES, OPF, xml2text, XHTML_MIME
-from calibre.ebooks.oeb.base import OEB_DOCS, OEB_STYLES, OEB_IMAGES, \
-    PAGE_MAP_MIME, JPEG_MIME, NCX_MIME, SVG_MIME
-from calibre.ebooks.oeb.base import XMLDECL_RE, COLLAPSE_RE, \
-    MS_COVER_TYPE, iterlinks
-from calibre.ebooks.oeb.base import namespace, barename, XPath, xpath, \
-                                    urlnormalize, BINARY_MIME, \
-                                    OEBError, OEBBook, DirContainer
-from calibre.ebooks.oeb.writer import OEBWriter
-from calibre.utils.xml_parse import safe_xml_fromstring
-from calibre.utils.cleantext import clean_xml_chars
-from calibre.utils.localization import get_lang
-from calibre.ptempfile import TemporaryDirectory
-from calibre.constants import __appname__, __version__
 from calibre import guess_type, xml_replace_entities
-from polyglot.builtins import unicode_type, zip
+from calibre.constants import __appname__, __version__
+from calibre.ebooks.oeb.base import (
+    BINARY_MIME,
+    COLLAPSE_RE,
+    DC11_NS,
+    DC_NSES,
+    JPEG_MIME,
+    MS_COVER_TYPE,
+    NCX_MIME,
+    OEB_DOCS,
+    OEB_IMAGES,
+    OEB_STYLES,
+    OPF,
+    OPF1_NS,
+    OPF2_NS,
+    OPF2_NSMAP,
+    PAGE_MAP_MIME,
+    SVG_MIME,
+    XHTML_MIME,
+    XMLDECL_RE,
+    DirContainer,
+    OEBBook,
+    OEBError,
+    XPath,
+    barename,
+    iterlinks,
+    namespace,
+    urlnormalize,
+    xml2text,
+    xpath,
+)
+from calibre.ebooks.oeb.writer import OEBWriter
+from calibre.ptempfile import TemporaryDirectory
+from calibre.utils.cleantext import clean_xml_chars
+from calibre.utils.localization import __, get_lang
+from calibre.utils.xml_parse import safe_xml_fromstring
 from polyglot.urllib import unquote, urldefrag, urlparse
 
 __all__ = ['OEBReader']
@@ -81,6 +106,8 @@ class OEBReader:
                 elem.tag = OPF(barename(elem.tag))
         nsmap.update(OPF2_NSMAP)
         attrib = dict(opf.attrib)
+        if xmlns := attrib.pop('xmlns:', None):
+            attrib['xmlns'] = xmlns
         nroot = etree.Element(OPF('package'),
             nsmap={None: OPF2_NS}, attrib=attrib)
         metadata = etree.SubElement(nroot, OPF('metadata'), nsmap=nsmap)
@@ -90,10 +117,10 @@ class OEBReader:
                 continue
             if namespace(elem.tag) in DC_NSES:
                 tag = barename(elem.tag).lower()
-                elem.tag = '{%s}%s' % (DC11_NS, tag)
+                elem.tag = f'{{{DC11_NS}}}{tag}'
             if elem.tag.startswith('dc:'):
                 tag = elem.tag.partition(':')[-1].lower()
-                elem.tag = '{%s}%s' % (DC11_NS, tag)
+                elem.tag = f'{{{DC11_NS}}}{tag}'
             metadata.append(elem)
         for element in xpath(opf, 'o2:metadata//o2:meta'):
             metadata.append(element)
@@ -145,7 +172,7 @@ class OEBReader:
                 dict(a=__appname__, v=__version__)
         meta_info_to_oeb_metadata(mi, self.oeb.metadata, self.logger)
         m = self.oeb.metadata
-        m.add('identifier', unicode_type(uuid.uuid4()), id='uuid_id', scheme='uuid')
+        m.add('identifier', str(uuid.uuid4()), id='uuid_id', scheme='uuid')
         self.oeb.uid = self.oeb.metadata.identifier[-1]
         if not m.title:
             m.add('title', self.oeb.translate(__('Unknown')))
@@ -448,7 +475,7 @@ class OEBReader:
         ncx = item.data
         title = ''.join(xpath(ncx, 'ncx:docTitle/ncx:text/text()'))
         title = COLLAPSE_RE.sub(' ', title.strip())
-        title = title or unicode_type(self.oeb.metadata.title[0])
+        title = title or str(self.oeb.metadata.title[0])
         toc = self.oeb.toc
         toc.title = title
         navmaps = xpath(ncx, 'ncx:navMap')
@@ -626,7 +653,7 @@ class OEBReader:
             writer = OEBWriter()
             writer(self.oeb, tdir)
             path = os.path.join(tdir, unquote(hcover.href))
-            data = render_html_svg_workaround(path, self.logger)
+            data = render_html_svg_workaround(path, self.logger, root=tdir)
             if not data:
                 data = b''
         id, href = self.oeb.manifest.generate('cover', 'cover.jpg')
@@ -635,7 +662,7 @@ class OEBReader:
 
     def _locate_cover_image(self):
         if self.oeb.metadata.cover:
-            id = unicode_type(self.oeb.metadata.cover[0])
+            id = str(self.oeb.metadata.cover[0])
             item = self.oeb.manifest.ids.get(id, None)
             if item is not None and item.media_type in OEB_IMAGES:
                 return item

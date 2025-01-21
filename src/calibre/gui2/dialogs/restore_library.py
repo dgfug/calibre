@@ -1,15 +1,12 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 # License: GPLv3 Copyright: 2011, Kovid Goyal <kovid at kovidgoyal.net>
 
 
-from qt.core import (QDialog, QLabel, QVBoxLayout, QDialogButtonBox,
-        QProgressBar, QSize, QTimer, pyqtSignal, Qt)
+from qt.core import QDialog, QDialogButtonBox, QLabel, QProgressBar, QSize, Qt, QTimer, QVBoxLayout, pyqtSignal
 
-from calibre.gui2 import (error_dialog, question_dialog, warning_dialog,
-    info_dialog)
 from calibre import force_unicode
 from calibre.constants import filesystem_encoding
+from calibre.gui2 import error_dialog, info_dialog, question_dialog, warning_dialog
 
 
 class DBRestore(QDialog):
@@ -21,7 +18,7 @@ class DBRestore(QDialog):
         self.l = QVBoxLayout()
         self.setLayout(self.l)
         self.l1 = QLabel('<b>'+_('Restoring database from backups, do not'
-            ' interrupt, this will happen in three stages')+'...')
+            ' interrupt, this will happen in multiple stages')+'...')
         self.setWindowTitle(_('Restoring database'))
         self.l.addWidget(self.l1)
         self.pb = QProgressBar(self)
@@ -111,7 +108,7 @@ def restore_database(db, parent=None):
         return False
     db.close()
     d = DBRestore(parent, db.library_path)
-    d.exec_()
+    d.exec()
     r = d.restorer
     d.restorer = None
     if d.rejected:
@@ -127,7 +124,7 @@ def restore_database(db, parent=None):
 
 def repair_library_at(library_path, parent=None, wait_time=2):
     d = DBRestore(parent, library_path, wait_time=wait_time)
-    d.exec_()
+    d.exec()
     if d.rejected:
         return False
     r = d.restorer

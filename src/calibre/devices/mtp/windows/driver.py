@@ -1,21 +1,23 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:fdm=marker:ai
 
 
 __license__   = 'GPL v3'
 __copyright__ = '2012, Kovid Goyal <kovid at kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import time, threading, traceback
-from functools import wraps, partial
-from polyglot.builtins import iteritems, itervalues, unicode_type, zip
+import os
+import threading
+import time
+import traceback
+from functools import partial, wraps
 from itertools import chain
 
-from calibre import as_unicode, prints, force_unicode
-from calibre.constants import __appname__, numeric_version, isxp
-from calibre.ptempfile import SpooledTemporaryFile
-from calibre.devices.errors import OpenFailed, DeviceError, BlacklistedDevice
+from calibre import as_unicode, force_unicode, prints
+from calibre.constants import __appname__, isxp, numeric_version
+from calibre.devices.errors import BlacklistedDevice, DeviceError, OpenFailed
 from calibre.devices.mtp.base import MTPDeviceBase, debug
+from calibre.ptempfile import SpooledTemporaryFile
+from polyglot.builtins import iteritems, itervalues
 
 null = object()
 
@@ -35,6 +37,17 @@ def same_thread(func):
             raise ThreadingViolation()
         return func(self, *args, **kwargs)
     return check_thread
+
+
+def sorted_storage(storage):
+    storage = sorted(storage, key=lambda x:x.get('id', 'zzzzz'))
+    if len(storage) > 1 and 'removable' in storage[0].get('type', ''):
+        for i in range(1, len(storage)):
+            x = storage[i]
+            if 'fixed' in x.get('type', ''):
+                storage[0], storage[i] = storage[i], storage[0]
+                break
+    return storage
 
 
 class MTP_DEVICE(MTPDeviceBase):
@@ -268,7 +281,7 @@ class MTP_DEVICE(MTPDeviceBase):
                         break
                 storage = {'id':storage_id, 'size':capacity, 'name':name,
                         'is_folder':True, 'can_delete':False, 'is_system':True}
-                self._currently_getting_sid = unicode_type(storage_id)
+                self._currently_getting_sid = str(storage_id)
                 id_map = self.dev.get_filesystem(storage_id, partial(
                         self._filesystem_callback, {}))
                 for x in itervalues(id_map):
@@ -331,7 +344,7 @@ class MTP_DEVICE(MTPDeviceBase):
             raise BlacklistedDevice(
                 'The %s device has been blacklisted by the user'%(connected_device,))
 
-        storage.sort(key=lambda x:x.get('id', 'zzzzz'))
+        storage = sorted_storage(storage)
 
         self._main_id = storage[0]['id']
         if len(storage) > 1:
@@ -380,6 +393,46 @@ class MTP_DEVICE(MTPDeviceBase):
         return tuple(ans)
 
     @same_thread
+    def list_mtp_folder_by_name(self, parent, *names: str):
+        if not parent.is_folder:
+            raise ValueError(f'{parent.full_path} is not a folder')
+        x = self.dev.list_folder_by_name(parent.object_id, names)
+        if x is None:
+            raise FileNotFoundError(f'Could not find folder named: {"/".join(names)} in {parent.full_path}')
+        return list(x.values())
+
+    @same_thread
+    def get_mtp_metadata_by_name(self, parent, *names: str):
+        if not parent.is_folder:
+            raise ValueError(f'{parent.full_path} is not a folder')
+        x = self.dev.get_metadata_by_name(parent.object_id, names)
+        if x is None:
+            raise DeviceError(f'Could not find folder named: {"/".join(names)} in {parent.full_path}')
+        return x
+
+    @same_thread
+    def get_mtp_file_by_name(self, parent, *names: str, stream=None, callback=None):
+        if not parent.is_folder:
+            raise ValueError(f'{parent.full_path} is not a folder')
+        set_name = stream is None
+        if stream is None:
+            stream = SpooledTemporaryFile(5*1024*1024, '_wpd_receive_file.dat')
+        try:
+            try:
+                self.dev.get_file_by_name(parent.object_id, names, stream, callback)
+            except self.wpd.WPDFileBusy:
+                time.sleep(2)
+                self.dev.get_file_by_name(parent.object_id, names, stream, callback)
+        except KeyError as e:
+            raise FileNotFoundError(f'Failed to find the file {os.sep.join(names)} in {parent.full_path}') from e
+        except Exception as e:
+            raise DeviceError(f'Failed to fetch the file {os.sep.join(names)} in {parent.full_path} with error: {as_unicode(e)}')
+        stream.seek(0)
+        if set_name:
+            stream.name = '/'.join(names)
+        return stream
+
+    @same_thread
     def get_mtp_file(self, f, stream=None, callback=None):
         if f.is_folder:
             raise ValueError('%s if a folder'%(f.full_path,))
@@ -407,7 +460,10 @@ class MTP_DEVICE(MTPDeviceBase):
         e = parent.folder_named(name)
         if e is not None:
             return e
-        ans = self.dev.create_folder(parent.object_id, name)
+        try:
+            ans = self.dev.create_folder(parent.object_id, name)
+        except Exception as err:
+            raise OSError(f'Failed to create the folder: {name} in {parent.full_path} with error: {err}') from err
         ans['storage_id'] = parent.storage_id
         return parent.add_child(ans)
 

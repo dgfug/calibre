@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-
 __license__ = 'GPL 3'
 __copyright__ = '2009, John Schember <john@nachtimwald.com>'
 __docformat__ = 'restructuredtext en'
@@ -8,9 +5,9 @@ __docformat__ = 'restructuredtext en'
 import os
 from optparse import OptionParser
 
-from calibre.customize.conversion import OptionRecommendation, DummyReporter
-from calibre.ebooks.conversion.plumber import Plumber
+from calibre.customize.conversion import DummyReporter, OptionRecommendation
 from calibre.customize.ui import plugin_for_catalog_format
+from calibre.ebooks.conversion.plumber import Plumber
 from calibre.utils.logging import Log
 
 

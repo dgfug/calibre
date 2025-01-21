@@ -2,12 +2,14 @@ __license__ = 'GPL 3'
 __copyright__ = '2009, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import socket, time, atexit
+import atexit
+import socket
+import time
 from collections import defaultdict
 from threading import Thread
 
-from calibre.utils.filenames import ascii_text
 from calibre import force_unicode
+from calibre.utils.filenames import ascii_text
 
 _server = None
 
@@ -76,21 +78,25 @@ def _get_external_ip():
     return ipaddr
 
 
-def verify_ipV4_address(ip_address):
-    result = None
-    if ip_address != '0.0.0.0' and ip_address != '::':
-        # do some more sanity checks on the address
-        try:
-            socket.inet_aton(ip_address)
-            if len(ip_address.split('.')) == 4:
-                result = ip_address
-        except (socket.error, OSError):
-            # Not legal ip address
-            pass
-    return result
-
-
 _ext_ip = None
+
+
+def verify_ip_address(addr: str) -> str:
+    result = ''
+    if addr not in ('0.0.0.0', '::'):
+        try:
+            socket.inet_pton(socket.AF_INET6, addr)
+        except Exception:
+            try:
+                socket.inet_pton(socket.AF_INET, addr)
+            except Exception:
+                pass
+            else:
+                if len(addr.split('.')) == 4:
+                    result = addr
+        else:
+            result = addr
+    return result
 
 
 def get_external_ip():
@@ -117,6 +123,13 @@ def start_server():
         atexit.register(stop_server)
 
     return _server
+
+
+def inet_aton(addr):
+    try:
+        return socket.inet_pton(socket.AF_INET6, addr)
+    except:
+        return socket.inet_pton(socket.AF_INET, addr)
 
 
 def create_service(desc, service_type, port, properties, add_hostname, use_ip_address=None):
@@ -148,13 +161,13 @@ def create_service(desc, service_type, port, properties, add_hostname, use_ip_ad
 
     return ServiceInfo(
         service_type, service_name,
-        addresses=[socket.inet_aton(local_ip),],
+        addresses=[inet_aton(local_ip),],
         port=port,
         properties=properties,
         server=server_name)
 
 
-def publish(desc, service_type, port, properties=None, add_hostname=True, use_ip_address=None):
+def publish(desc, service_type, port, properties=None, add_hostname=True, use_ip_address=None, strict=True):
     '''
     Publish a service.
 
@@ -167,7 +180,7 @@ def publish(desc, service_type, port, properties=None, add_hostname=True, use_ip
     server = start_server()
     service = create_service(desc, service_type, port, properties, add_hostname,
                              use_ip_address)
-    server.register_service(service)
+    server.register_service(service, strict=strict)
     return service
 
 
@@ -179,12 +192,9 @@ def unpublish(desc, service_type, port, properties=None, add_hostname=True, wait
     '''
     server = start_server()
     service = create_service(desc, service_type, port, properties, add_hostname)
+    num_services = len(server.registry.async_get_service_infos())
     server.unregister_service(service)
-    try:
-        no_services = len(server.registry.services) == 0
-    except AttributeError:
-        no_services = len(server.services) == 0
-    if no_services:
+    if num_services < 2:
         stop_server(wait_for_stop=wait_for_stop)
 
 

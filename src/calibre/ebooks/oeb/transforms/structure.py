@@ -1,19 +1,19 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 __license__   = 'GPL v3'
 __copyright__ = '2009, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import re, uuid
+import re
+import uuid
+from collections import Counter, OrderedDict
 
 from lxml import etree
-from collections import OrderedDict, Counter
 
-from calibre.ebooks.oeb.base import XPNSMAP, TOC, XHTML, xml2text, barename
 from calibre.ebooks import ConversionError
-from polyglot.builtins import itervalues, unicode_type
+from calibre.ebooks.oeb.base import TOC, XHTML, XPNSMAP, barename, xml2text
+from polyglot.builtins import itervalues
 from polyglot.urllib import urlparse
 
 
@@ -124,7 +124,7 @@ class DetectStructure:
                 elem = matches[0]
                 eid = elem.get('id', None)
                 if not eid:
-                    eid = 'start_reading_at_'+unicode_type(uuid.uuid4()).replace('-', '')
+                    eid = 'start_reading_at_'+str(uuid.uuid4()).replace('-', '')
                     elem.set('id', eid)
                 if 'text' in self.oeb.guide:
                     self.oeb.guide.remove('text')

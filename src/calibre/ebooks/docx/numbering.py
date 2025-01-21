@@ -1,20 +1,20 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 
 
 __license__ = 'GPL v3'
 __copyright__ = '2013, Kovid Goyal <kovid at kovidgoyal.net>'
 
-import re, string
+import re
+import string
 from collections import Counter, defaultdict
 from functools import partial
 
-from lxml.html.builder import OL, UL, SPAN
+from lxml.html.builder import OL, SPAN, UL
 
 from calibre.ebooks.docx.block_styles import ParagraphStyle
 from calibre.ebooks.docx.char_styles import RunStyle, inherit
 from calibre.ebooks.metadata import roman
-from polyglot.builtins import iteritems, unicode_type
+from polyglot.builtins import iteritems
 
 STYLE_MAP = {
     'aiueo': 'hiragana',
@@ -291,7 +291,7 @@ class Numbering:
                     seen_instances.add(num_id)
                     p.tag = 'li'
                     p.set('value', '%s' % counter[ilvl])
-                    p.set('list-lvl', unicode_type(ilvl))
+                    p.set('list-lvl', str(ilvl))
                     p.set('list-id', num_id)
                     if lvl.num_template is not None:
                         val = lvl.format_template(counter, ilvl, lvl.num_template)

@@ -1,20 +1,22 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 __license__   = 'GPL v3'
 __copyright__ = '2010, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import json, re, numbers
+import json
+import numbers
+import re
 from functools import partial
 
-from calibre import prints, force_unicode
+from calibre import force_unicode, prints
 from calibre.constants import preferred_encoding
 from calibre.library.field_metadata import FieldMetadata
-from calibre.utils.date import parse_date
 from calibre.utils.config import tweaks
-from polyglot.builtins import unicode_type, string_or_bytes
+from calibre.utils.date import parse_date
+from calibre.utils.localization import _
+from polyglot.builtins import string_or_bytes
 
 
 class CustomColumns:
@@ -131,23 +133,23 @@ class CustomColumns:
             if d['is_multiple']:
                 if x is None:
                     return []
-                if isinstance(x, (unicode_type, bytes)):
+                if isinstance(x, (str, bytes)):
                     x = x.split(d['multiple_seps']['ui_to_list'])
                 x = [y.strip() for y in x if y.strip()]
                 x = [y.decode(preferred_encoding, 'replace') if not isinstance(y,
-                    unicode_type) else y for y in x]
+                    str) else y for y in x]
                 return [' '.join(y.split()) for y in x]
             else:
-                return x if x is None or isinstance(x, unicode_type) else \
+                return x if x is None or isinstance(x, str) else \
                         x.decode(preferred_encoding, 'replace')
 
         def adapt_datetime(x, d):
-            if isinstance(x, (unicode_type, bytes)):
+            if isinstance(x, (str, bytes)):
                 x = parse_date(x, assume_utc=False, as_utc=False)
             return x
 
         def adapt_bool(x, d):
-            if isinstance(x, (unicode_type, bytes)):
+            if isinstance(x, (str, bytes)):
                 if isinstance(x, bytes):
                     x = force_unicode(x)
                 x = x.lower()
@@ -170,7 +172,7 @@ class CustomColumns:
         def adapt_number(x, d):
             if x is None:
                 return None
-            if isinstance(x, (unicode_type, bytes)):
+            if isinstance(x, (str, bytes)):
                 if isinstance(x, bytes):
                     x = force_unicode(x)
                 if x.lower() == 'none':
@@ -199,7 +201,7 @@ class CustomColumns:
             else:
                 is_category = False
             is_m = v['multiple_seps']
-            tn = 'custom_column_{0}'.format(v['num'])
+            tn = 'custom_column_{}'.format(v['num'])
             self.field_metadata.add_custom_field(label=v['label'],
                     table=tn, column='value', datatype=v['datatype'],
                     colnum=v['num'], name=v['name'], display=v['display'],
@@ -218,7 +220,7 @@ class CustomColumns:
             if data['display'].get('sort_alpha', False):
                 ans.sort(key=lambda x:x.lower())
         if data['datatype'] == 'datetime' and isinstance(ans, string_or_bytes):
-            from calibre.db.tables import c_parse, UNDEFINED_DATE
+            from calibre.db.tables import UNDEFINED_DATE, c_parse
             ans = c_parse(ans)
             if ans is UNDEFINED_DATE:
                 ans = None
@@ -250,7 +252,7 @@ class CustomColumns:
             if data['display'].get('sort_alpha', False):
                 ans.sort(key=lambda x: x.lower())
         if data['datatype'] == 'datetime' and isinstance(ans, string_or_bytes):
-            from calibre.db.tables import c_parse, UNDEFINED_DATE
+            from calibre.db.tables import UNDEFINED_DATE, c_parse
             ans = c_parse(ans)
             if ans is UNDEFINED_DATE:
                 ans = None
@@ -557,8 +559,8 @@ class CustomColumns:
             if not append or not data['is_multiple']:
                 self.conn.execute('DELETE FROM %s WHERE book=?'%lt, (id_,))
                 self.conn.execute(
-                '''DELETE FROM %s WHERE (SELECT COUNT(id) FROM %s WHERE
-                    value=%s.id) < 1''' % (table, lt, table))
+                '''DELETE FROM {} WHERE (SELECT COUNT(id) FROM {} WHERE
+                    value={}.id) < 1'''.format(table, lt, table))
                 self.data._data[id_][self.FIELD_MAP[data['num']]] = None
             set_val = val if data['is_multiple'] else [val]
             existing = getter()

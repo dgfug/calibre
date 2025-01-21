@@ -1,27 +1,28 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 # License: GPLv3 Copyright: 2015, Kovid Goyal <kovid at kovidgoyal.net>
 
 
 import os
-from copy import copy
 from collections import namedtuple
+from copy import copy
 from datetime import datetime, time
 from functools import partial
 from threading import Lock
 
 from calibre.constants import config_dir
-from calibre.db.categories import Tag
+from calibre.db.categories import Tag, category_display_order
+from calibre.db.constants import DATA_FILE_PATTERN, TEMPLATE_ICON_INDICATOR
 from calibre.ebooks.metadata.sources.identify import urls_from_identifiers
-from calibre.utils.date import isoformat, UNDEFINED_DATE, local_tz
-from calibre.utils.config import tweaks
-from calibre.utils.formatter import EvalFormatter
-from calibre.utils.file_type_icons import EXT_MAP
-from calibre.utils.icu import collation_order
-from calibre.utils.localization import calibre_langcode_to_name
 from calibre.library.comments import comments_to_html, markdown
 from calibre.library.field_metadata import category_icon_map
-from polyglot.builtins import iteritems, itervalues, range, filter, unicode_type
+from calibre.utils.config import tweaks
+from calibre.utils.date import UNDEFINED_DATE, isoformat, local_tz
+from calibre.utils.file_type_icons import EXT_MAP
+from calibre.utils.formatter import EvalFormatter
+from calibre.utils.icu import collation_order_for_partitioning
+from calibre.utils.icu import upper as icu_upper
+from calibre.utils.localization import _, calibre_langcode_to_name
+from polyglot.builtins import iteritems, itervalues
 from polyglot.urllib import quote
 
 IGNORED_FIELDS = frozenset('cover ondevice path marked au_map'.split())
@@ -64,6 +65,12 @@ def add_field(field, db, book_id, ans, field_metadata):
             ans[field] = val
 
 
+def encode_stat_result(s: os.stat_result) -> dict[str, int]:
+    return {
+        'size': s.st_size, 'mtime_ns': s.st_mtime_ns,
+    }
+
+
 def book_as_json(db, book_id):
     db = db.new_api
     with db.safe_read_lock:
@@ -88,6 +95,15 @@ def book_as_json(db, book_id):
         langs = ans.get('languages')
         if langs:
             ans['lang_names'] = {l:calibre_langcode_to_name(l) for l in langs}
+        link_maps = db.get_all_link_maps_for_book(book_id)
+        if link_maps:
+            ans['link_maps'] = link_maps
+        x = db.items_with_notes_in_book(book_id)
+        if x:
+            ans['items_with_notes'] = {field: {v: k for k, v in items.items()} for field, items in x.items()}
+        data_files = db.list_extra_files(book_id, use_cache=True, pattern=DATA_FILE_PATTERN)
+        if data_files:
+            ans['data_files'] = {e.relpath: encode_stat_result(e.stat_result) for e in data_files}
     return ans
 
 
@@ -116,7 +132,7 @@ def category_as_json(items, category, display_name, count, tooltip=None, parent=
         ans['is_user_category'] = True
     if is_first_letter:
         ans['is_first_letter'] = True
-    item_id = 'c' + unicode_type(len(items))
+    item_id = 'c' + str(len(items))
     items[item_id] = ans
     return item_id
 
@@ -139,6 +155,52 @@ def category_item_as_json(x, clear_rating=False):
     if clear_rating:
         del ans['avg_rating']
     return ans
+
+
+
+def get_gpref(name: str, defval = None):
+    gprefs = getattr(get_gpref, 'gprefs', None)
+    if gprefs is None:
+        from calibre.utils.config import JSONConfig
+        gprefs = get_gpref.gprefs = JSONConfig('gui')
+    return gprefs.get(name, defval)
+
+
+def get_icon_for_node(node, parent, node_to_tag_map, tag_map, eval_formatter):
+    category = node['category']
+    if category in ('search', 'formats') or category.startswith('@'):
+        return
+
+    def name_for_icon(node):
+        return node.get('original_name', node.get('name'))
+
+    value_icons = get_gpref('tags_browser_value_icons')
+    val_icon, for_children = value_icons.get(category, {}).get(name_for_icon(node), (None, False))
+    if val_icon is None:
+        # No specific icon. Walk up the hierarchy checking parents.
+        par = parent
+        while True:
+            pid = str(par['id'])
+            if not pid.startswith('n'):
+                # 'Real' nodes (tag nodes) start with 'n'
+                break
+            pt = node_to_tag_map[pid]
+            pd = tag_map[id(pt)][1]
+            val_icon,for_children = value_icons.get(pd['category'], {}).get(name_for_icon(pd), (None, False))
+            if val_icon is not None and for_children:
+                break
+            par = pd
+    if val_icon is None and TEMPLATE_ICON_INDICATOR in value_icons.get(category, {}):
+        t = eval_formatter.safe_format(
+            value_icons[category][TEMPLATE_ICON_INDICATOR][0], {'category': category, 'value': name_for_icon(node)},
+            'VALUE_ICON_TEMPLATE_ERROR', {})
+        if t:
+            # Use POSIX path separator
+            val_icon = 'template_icons/' + t
+        else:
+            val_icon = None
+    if val_icon:
+        node['value_icon'] = val_icon
 
 
 CategoriesSettings = namedtuple(
@@ -217,16 +279,22 @@ def categories_settings(query, db, gst_container=GroupedSearchTerms):
         hidden_categories, query.get('hide_empty_categories') == 'yes')
 
 
-def create_toplevel_tree(category_data, items, field_metadata, opts):
+def create_toplevel_tree(category_data, items, field_metadata, opts, db):
     # Create the basic tree, containing all top level categories , user
     # categories and grouped search terms
     last_category_node, category_node_map, root = None, {}, {'id':None, 'children':[]}
     node_id_map = {}
     category_nodes, recount_nodes = [], []
-    order = tweaks['tag_browser_category_order']
-    defvalue = order.get('*', 100)
-    categories = [category for category in field_metadata if category in category_data]
-    scats = sorted(categories, key=lambda x: order.get(x, defvalue))
+    # User categories are listed in category_display_order using their prefix.
+    # In other words, both @AAA.BB and @AAA.CC appear once as @AAA. We need to
+    # process the category list to get the "real" user categories.
+    scats_t = category_display_order(db.pref('tag_browser_category_order', ()), tuple(category_data.keys()))
+    scats = []
+    for category in scats_t:
+        if not category.startswith('@'):
+            scats.append(category)
+        else:
+            scats.extend(sorted(c for c in category_data.keys() if c == category or c.startswith(category+'.')))
 
     for category in scats:
         is_user_category = category.startswith('@')
@@ -291,7 +359,7 @@ def build_first_letter_list(category_items):
             c = ' '
         else:
             c = icu_upper(tag.sort)
-        ordnum, ordlen = collation_order(c)
+        ordnum, ordlen = collation_order_for_partitioning(c)
         if last_ordnum != ordnum:
             last_c = c[0:ordlen]
             last_ordnum = ordnum
@@ -362,6 +430,9 @@ def process_category_node(
         opts, tag_map, hierarchical_tags, node_to_tag_map, collapse_nodes,
         intermediate_nodes, hierarchical_items):
     category = items[category_node['id']]['category']
+    if category not in category_data:
+        # This can happen for user categories that are hierarchical and missing their parent.
+        return
     category_items = category_data[category]
     cat_len = len(category_items)
     if cat_len <= 0:
@@ -397,6 +468,11 @@ def process_category_node(
             node_id, node_data = node_data
         node = {'id':node_id, 'children':[]}
         parent['children'].append(node)
+        try:
+            get_icon_for_node(node_data, parent, node_to_tag_map, tag_map, eval_formatter)
+        except Exception:
+            import traceback
+            traceback.print_exc()
         return node, node_data
 
     for idx, tag in enumerate(category_items):
@@ -476,8 +552,7 @@ def process_category_node(
 def iternode_descendants(node):
     for child in node['children']:
         yield child
-        for x in iternode_descendants(child):
-            yield x
+        yield from iternode_descendants(child)
 
 
 def fillout_tree(root, items, node_id_map, category_nodes, category_data, field_metadata, opts, book_rating_map):
@@ -524,7 +599,7 @@ def fillout_tree(root, items, node_id_map, category_nodes, category_data, field_
 def render_categories(opts, db, category_data):
     items = {}
     with db.safe_read_lock:
-        root, node_id_map, category_nodes, recount_nodes = create_toplevel_tree(category_data, items, db.field_metadata, opts)
+        root, node_id_map, category_nodes, recount_nodes = create_toplevel_tree(category_data, items, db.field_metadata, opts, db)
         fillout_tree(root, items, node_id_map, category_nodes, category_data, db.field_metadata, opts, db.fields['rating'].book_value_map)
     for node in recount_nodes:
         item = items[node['id']]
@@ -554,7 +629,7 @@ def dump_categories_tree(data):
         if rating:
             rating = ',rating=%.1f' % rating
         try:
-            ans.append(indent*level + item['name'] + ' [count=%s%s]' % (item['count'], rating or ''))
+            ans.append(indent*level + item['name'] + ' [count={}{}]'.format(item['count'], rating or ''))
         except KeyError:
             print(item)
             raise
@@ -611,6 +686,6 @@ def test_tag_browser(library_path=None):
     from calibre.gui2.tweak_book.diff.main import Diff
     d = Diff(show_as_window=True)
     d.string_diff(m_data, srv_data, left_name='GUI', right_name='server')
-    d.exec_()
+    d.exec()
     del app
 # }}}

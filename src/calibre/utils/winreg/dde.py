@@ -1,12 +1,11 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 
 
 __license__ = 'GPL v3'
 __copyright__ = '2015, Kovid Goyal <kovid at kovidgoyal.net>'
 
 import numbers
-from ctypes import POINTER, WINFUNCTYPE, c_void_p, c_ulong, c_char_p, windll, byref
+from ctypes import POINTER, WINFUNCTYPE, byref, c_char_p, c_ulong, c_void_p, windll
 from ctypes.wintypes import BOOL, DWORD, LPCWSTR, UINT
 
 from polyglot.builtins import itervalues

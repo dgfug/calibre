@@ -1,12 +1,12 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:fdm=marker:ai
 
 
 __license__   = 'GPL v3'
 __copyright__ = '2013, Kovid Goyal <kovid at kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import os, glob
+import glob
+import os
 
 
 class MTPDetect:
@@ -29,9 +29,9 @@ class MTPDetect:
 
         def read(x):
             try:
-                with lopen(x, 'rb') as f:
+                with open(x, 'rb') as f:
                     return f.read()
-            except EnvironmentError:
+            except OSError:
                 pass
 
         ipath = os.path.join(self.base, '{0}-*/{0}-*/interface'.format(dev.busnum))
@@ -44,12 +44,10 @@ class MTPDetect:
             try:
                 if raw and int(raw) == dev.devnum:
                     if debug is not None:
-                        debug('Unknown device {0} claims to be an MTP device'
+                        debug('Unknown device {} claims to be an MTP device'
                               .format(dev))
                     return True
             except (ValueError, TypeError):
                 continue
 
         return False
-
-

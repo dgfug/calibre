@@ -1,6 +1,3 @@
-# -*- encoding: utf-8 -*-
-
-
 '''
 CSS property propagation class.
 '''
@@ -8,21 +5,29 @@ CSS property propagation class.
 __license__   = 'GPL v3'
 __copyright__ = '2008, Marshall T. Vandegrift <llasram@gmail.com>'
 
-import os, re, logging, copy, unicodedata, numbers
+import copy
+import logging
+import numbers
+import os
+import re
+import unicodedata
 from operator import itemgetter
 from weakref import WeakKeyDictionary
 from xml.dom import SyntaxErr as CSSSyntaxError
-from css_parser.css import (CSSStyleRule, CSSPageRule, CSSFontFaceRule,
-        cssproperties)
-from css_parser import (profile as cssprofiles, parseString, parseStyle, log as
-        css_parser_log, CSSParser, profiles, replaceUrls)
-from calibre import force_unicode, as_unicode
-from calibre.ebooks import unit_convert
-from calibre.ebooks.oeb.base import XHTML, XHTML_NS, CSS_MIME, OEB_STYLES, xpath, urlnormalize
-from calibre.ebooks.oeb.normalize_css import DEFAULTS, normalizers
-from css_selectors import Select, SelectorError, INAPPROPRIATE_PSEUDO_CLASSES
-from polyglot.builtins import iteritems, unicode_type, filter
+
+from css_parser import CSSParser, parseString, parseStyle, profiles, replaceUrls
+from css_parser import log as css_parser_log
+from css_parser import profile as cssprofiles
+from css_parser.css import CSSFontFaceRule, CSSPageRule, CSSStyleRule, cssproperties
+from css_selectors import INAPPROPRIATE_PSEUDO_CLASSES, Select, SelectorError
 from tinycss.media3 import CSSMedia3Parser
+
+from calibre import as_unicode, force_unicode
+from calibre.ebooks import unit_convert
+from calibre.ebooks.oeb.base import CSS_MIME, OEB_STYLES, SVG, XHTML, XHTML_NS, urlnormalize, xpath
+from calibre.ebooks.oeb.normalize_css import DEFAULTS, normalizers
+from calibre.utils.resources import get_path as P
+from polyglot.builtins import iteritems
 
 css_parser_log.setLevel(logging.WARN)
 
@@ -103,6 +108,13 @@ def test_media_ok():
     assert not media_ok('screen and (device-width:10px)')
 
 
+class style_map(dict):
+
+    def __init__(self):
+        super().__init__()
+        self.important_properties = set()
+
+
 class StylizerRules:
 
     def __init__(self, opts, profile, stylesheets):
@@ -147,16 +159,24 @@ class StylizerRules:
         return results
 
     def flatten_style(self, cssstyle):
-        style = {}
+        style = style_map()
         for prop in cssstyle:
             name = prop.name
             normalizer = normalizers.get(name, None)
+            is_important = prop.priority == 'important'
             if normalizer is not None:
-                style.update(normalizer(name, prop.propertyValue))
+                for name, val in normalizer(name, prop.propertyValue).items():
+                    style[name] = val
+                    if is_important:
+                        style.important_properties.add(name)
             elif name == 'text-align':
                 style['text-align'] = self._apply_text_align(prop.value)
+                if is_important:
+                    style.important_properties.add(name)
             else:
                 style[name] = prop.value
+                if is_important:
+                    style.important_properties.add(name)
         if 'font-size' in style:
             size = style['font-size']
             if size == 'normal':
@@ -227,7 +247,7 @@ class Stylizer:
         parser = CSSParser(fetcher=self._fetch_css_file,
                 log=logging.getLogger('calibre.css'))
         for elem in style_tags:
-            if (elem.tag == XHTML('style') and elem.get('type', CSS_MIME) in OEB_STYLES and media_ok(elem.get('media'))):
+            if (elem.tag in (XHTML('style'), SVG('style')) and elem.get('type', CSS_MIME) in OEB_STYLES and media_ok(elem.get('media'))):
                 text = elem.text if elem.text else ''
                 for x in elem:
                     t = getattr(x, 'text', None)
@@ -312,7 +332,7 @@ class Stylizer:
             try:
                 matches = tuple(select(text))
             except SelectorError as err:
-                self.logger.error('Ignoring CSS rule with invalid selector: %r (%s)' % (text, as_unicode(err)))
+                self.logger.error(f'Ignoring CSS rule with invalid selector: {text!r} ({as_unicode(err)})')
                 continue
 
             if fl is not None:
@@ -324,7 +344,7 @@ class Stylizer:
                         for x in elem.iter('*'):
                             if x.text:
                                 punctuation_chars = []
-                                text = unicode_type(x.text)
+                                text = str(x.text)
                                 while text:
                                     category = unicodedata.category(text[0])
                                     if category[0] not in {'P', 'Z'}:
@@ -403,18 +423,34 @@ class Stylizer:
                 size = float(style['font-size'][:-2])
                 style['font-size'] = "%.2fpt" % (size * font_scale)
             style = ';\n    '.join(': '.join(item) for item in style.items())
-            rules.append('%s {\n    %s;\n}' % (selector, style))
+            rules.append(f'{selector} {{\n    {style};\n}}')
         return '\n'.join(rules)
+
+
+no_important_properties = frozenset()
+svg_text_tags = tuple(map(SVG, ('text', 'textPath', 'tref', 'tspan')))
+
+
+def is_only_number(x: str) -> bool:
+    try:
+        float(x)
+        return True
+    except Exception:
+        return False
+
+def is_svg_text_tag(x):
+    return getattr(x, 'tag', '') in svg_text_tags
 
 
 class Style:
     MS_PAT = re.compile(r'^\s*(mso-|panose-|text-underline|tab-interval)')
+    viewport_relative_font_size: str = ''
 
     def __init__(self, element, stylizer):
         self._element = element
         self._profile = stylizer.profile
         self._stylizer = stylizer
-        self._style = {}
+        self._style = style_map()
         self._fontSize = None
         self._width = None
         self._height = None
@@ -431,7 +467,25 @@ class Style:
         return self._style.pop(prop, default)
 
     def _update_cssdict(self, cssdict):
-        self._style.update(cssdict)
+        self._update_style(cssdict)
+
+    def _update_style(self, cssdict):
+        current_ip = getattr(self._style, 'important_properties', no_important_properties)
+        if current_ip is no_important_properties:
+            s = style_map()
+            s.update(self._style)
+            self._style = s
+            current_ip = self._style.important_properties
+        update_ip = getattr(cssdict, 'important_properties', no_important_properties)
+        for name, val in cssdict.items():
+            override = False
+            if name in update_ip:
+                current_ip.add(name)
+                override = True
+            elif name not in current_ip:
+                override = True
+            if override:
+                self._style[name] = val
 
     def _update_pseudo_class(self, name, cssdict):
         orig = self._pseudo_classes.get(name, {})
@@ -453,7 +507,7 @@ class Style:
             return
         if url_replacer is not None:
             replaceUrls(style, url_replacer, ignoreImportRules=True)
-        self._style.update(self._stylizer.flatten_style(style))
+        self._update_style(self._stylizer.flatten_style(style))
 
     def _has_parent(self):
         try:
@@ -587,6 +641,8 @@ class Style:
                 base = self._profile.fbase
             if 'font-size' in self._style:
                 size = self._style['font-size']
+                if is_svg_text_tag(self._element) and (size.endswith('px') or is_only_number(size)):
+                    self.viewport_relative_font_size = size
                 result = normalize_fontsize(size, base)
             else:
                 result = base
@@ -603,7 +659,7 @@ class Style:
         x = self._style.get(attr)
         if x is not None:
             if x == 'auto':
-                ans = self._unit_convert(unicode_type(img_size) + 'px', base=base)
+                ans = self._unit_convert(str(img_size) + 'px', base=base)
             else:
                 x = self._unit_convert(x, base=base)
                 if isinstance(x, numbers.Number):
@@ -615,7 +671,7 @@ class Style:
                 if isinstance(x, numbers.Number):
                     ans = x
         if ans is None:
-            ans = self._unit_convert(unicode_type(img_size) + 'px', base=base)
+            ans = self._unit_convert(str(img_size) + 'px', base=base)
         maa = self._style.get('max-' + attr)
         if maa is not None:
             x = self._unit_convert(maa, base=base)
@@ -651,12 +707,12 @@ class Style:
                 result = base
             else:
                 result = self._unit_convert(width, base=base)
-            if isinstance(result, (unicode_type, bytes)):
+            if isinstance(result, (str, bytes)):
                 result = self._profile.width
             self._width = result
             if 'max-width' in self._style:
                 result = self._unit_convert(self._style['max-width'], base=base)
-                if isinstance(result, (unicode_type, bytes)):
+                if isinstance(result, (str, bytes)):
                     result = self._width
                 if result < self._width:
                     self._width = result
@@ -688,12 +744,12 @@ class Style:
                 result = base
             else:
                 result = self._unit_convert(height, base=base)
-            if isinstance(result, (unicode_type, bytes)):
+            if isinstance(result, (str, bytes)):
                 result = self._profile.height
             self._height = result
             if 'max-height' in self._style:
                 result = self._unit_convert(self._style['max-height'], base=base)
-                if isinstance(result, (unicode_type, bytes)):
+                if isinstance(result, (str, bytes)):
                     result = self._height
                 if result < self._height:
                     self._height = result
@@ -798,7 +854,7 @@ class Style:
 
     def __str__(self):
         items = sorted(iteritems(self._style))
-        return '; '.join("%s: %s" % (key, val) for key, val in items)
+        return '; '.join(f"{key}: {val}" for key, val in items)
 
     def cssdict(self):
         return dict(self._style)

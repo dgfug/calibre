@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-
 __license__ = 'GPL 3'
 __copyright__ = '2010, Li Fanxi <lifanxi@freemindworld.com>'
 __docformat__ = 'restructuredtext en'
@@ -10,7 +7,6 @@ import os
 from calibre.customize.conversion import InputFormatPlugin
 from calibre.ptempfile import TemporaryDirectory
 from calibre.utils.filenames import ascii_filename
-from polyglot.builtins import unicode_type
 
 HTML_TEMPLATE = '<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/><title>%s</title></head><body>\n%s\n</body></html>'
 
@@ -75,7 +71,7 @@ class SNBInput(InputFormatPlugin):
             if d['cover'] != '':
                 oeb.guide.add('cover', 'Cover', d['cover'])
 
-        bookid = unicode_type(uuid.uuid4())
+        bookid = str(uuid.uuid4())
         oeb.metadata.add('identifier', bookid, id='uuid_id', scheme='uuid')
         for ident in oeb.metadata.identifier:
             if 'id' in ident.attrib:

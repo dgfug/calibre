@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 # License: GPLv3 Copyright: 2016, Kovid Goyal <kovid at kovidgoyal.net>
 
 
@@ -7,13 +6,16 @@
 Device driver for the Paladin devices
 '''
 
-import os, time, sys
+import os
+import sys
+import time
 from contextlib import closing
 
-from calibre.devices.mime import mime_type_ext
 from calibre.devices.errors import DeviceError
-from calibre.devices.usbms.driver import USBMS, debug_print
-from calibre.devices.usbms.books import CollectionsBookList, BookList
+from calibre.devices.mime import mime_type_ext
+from calibre.devices.usbms.books import BookList, CollectionsBookList
+from calibre.devices.usbms.driver import USBMS
+from calibre.prints import debug_print
 
 DBPATH = 'paladin/database/books.db'
 
@@ -110,7 +112,7 @@ class PALADIN(USBMS):
                 for i, row in enumerate(cursor):
                     try:
                         comp_date = int(os.path.getmtime(self.normalize_path(prefix + row[0])) * 1000)
-                    except (OSError, IOError, TypeError):
+                    except (OSError, TypeError):
                         # In case the db has incorrect path info
                         continue
                     device_date = int(row[1])
@@ -307,8 +309,8 @@ class PALADIN(USBMS):
 
     def update_device_books(self, connection, booklist, source_id, plugboard,
             dbpath):
-        from calibre.ebooks.metadata.meta import path_to_ext
         from calibre.ebooks.metadata import authors_to_sort_string, authors_to_string
+        from calibre.ebooks.metadata.meta import path_to_ext
         opts = self.settings()
 
         db_books = self.read_device_books(connection, source_id, dbpath)

@@ -1,22 +1,22 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 __license__   = 'GPL v3'
 __copyright__ = '2012, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import struct, re, os
+import os
+import re
+import struct
 
 from calibre import replace_entities
-from calibre.utils.date import parse_date
-from calibre.ebooks.mobi import MobiError
 from calibre.ebooks.metadata import MetaInformation, check_isbn
-from calibre.ebooks.mobi.langcodes import main_language, sub_language, mobi2iana
+from calibre.ebooks.mobi import MobiError
+from calibre.ebooks.mobi.langcodes import main_language, mobi2iana, sub_language
 from calibre.utils.cleantext import clean_ascii_chars, clean_xml_chars
-from calibre.utils.localization import canonicalize_lang
 from calibre.utils.config_base import tweaks
-from polyglot.builtins import unicode_type
+from calibre.utils.date import parse_date
+from calibre.utils.localization import canonicalize_lang
 
 NULL_INDEX = 0xffffffff
 
@@ -250,7 +250,7 @@ class BookHeader:
 
             self.exth_flag, = struct.unpack('>L', raw[0x80:0x84])
             self.exth = None
-            if not isinstance(self.title, unicode_type):
+            if not isinstance(self.title, str):
                 self.title = self.title.decode(self.codec, 'replace')
             if self.exth_flag & 0x40:
                 try:

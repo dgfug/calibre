@@ -1,21 +1,22 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:fdm=marker:ai
 
 __license__   = 'GPL v3'
 __copyright__ = '2012, Kovid Goyal <kovid at kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import operator, traceback, pprint, sys, time
-from threading import RLock
+import operator
+import pprint
+import time
+import traceback
 from collections import namedtuple
 from functools import partial
+from threading import RLock
 
-from calibre import prints, as_unicode, force_unicode
+from calibre import as_unicode, force_unicode, prints
 from calibre.constants import islinux, ismacos
+from calibre.devices.errors import BlacklistedDevice, DeviceError, OpenActionNeeded, OpenFailed
+from calibre.devices.mtp.base import MTPDeviceBase, debug, synchronous
 from calibre.ptempfile import SpooledTemporaryFile
-from calibre.devices.errors import OpenFailed, DeviceError, BlacklistedDevice, OpenActionNeeded
-from calibre.devices.mtp.base import MTPDeviceBase, synchronous, debug
-from polyglot.builtins import unicode_type
 
 MTPDevice = namedtuple('MTPDevice', 'busnum devnum vendor_id product_id '
         'bcd serial manufacturer product')
@@ -26,6 +27,17 @@ null = object()
 def fingerprint(d):
     return MTPDevice(d.busnum, d.devnum, d.vendor_id, d.product_id, d.bcd,
             d.serial, d.manufacturer, d.product)
+
+
+def sorted_storage(storage_info):
+    storage = sorted(storage_info, key=operator.itemgetter('id'))
+    if len(storage) > 1 and storage[0].get('removable', False):
+        for i in range(1, len(storage)):
+            x = storage[i]
+            if not x.get('removable', False):
+                storage[0], storage[i] = storage[i], storage[0]
+                break
+    return storage
 
 
 APPLE = 0x05ac
@@ -76,7 +88,7 @@ class MTP_DEVICE(MTPDeviceBase):
                     traceback.print_stack()
                 return False
         if debug is not None and ans:
-            debug('Device {0} claims to be an MTP device in the IOKit registry'.format(d))
+            debug(f'Device {d} claims to be an MTP device in the IOKit registry')
         return bool(ans)
 
     def set_debug_level(self, lvl):
@@ -220,9 +232,9 @@ class MTP_DEVICE(MTPDeviceBase):
                     connected_device, as_unicode(e)))
 
         try:
-            storage = sorted(self.dev.storage_info, key=operator.itemgetter('id'))
+            storage = sorted_storage(self.dev.storage_info)
         except self.libmtp.MTPError as e:
-            if "The device has no storage information." in unicode_type(e):
+            if "The device has no storage information." in str(e):
                 # This happens on newer Android devices while waiting for
                 # the user to allow access. Apparently what happens is
                 # that when the user clicks allow, the device disconnects
@@ -275,7 +287,7 @@ class MTP_DEVICE(MTPDeviceBase):
         ans += '\nids: %s'%(self.dev.ids,)
         ans += '\nDevice version: %s'%self.dev.device_version
         ans += '\nStorage:\n'
-        storage = sorted(self.dev.storage_info, key=operator.itemgetter('id'))
+        storage = sorted_storage(self.dev.storage_info)
         ans += pprint.pformat(storage)
         return ans
 
@@ -317,7 +329,7 @@ class MTP_DEVICE(MTPDeviceBase):
                     storage.append({'id':sid, 'size':capacity,
                         'is_folder':True, 'name':name, 'can_delete':False,
                         'is_system':True})
-                    self._currently_getting_sid = unicode_type(sid)
+                    self._currently_getting_sid = str(sid)
                     items, errs = self.dev.get_filesystem(sid,
                             partial(self._filesystem_callback, {}))
                     all_items.extend(items), all_errs.extend(errs)
@@ -418,6 +430,48 @@ class MTP_DEVICE(MTPDeviceBase):
         return stream
 
     @synchronous
+    def list_mtp_folder_by_name(self, parent, *names: str):
+        if not parent.is_folder:
+            raise ValueError(f'{parent.full_path} is not a folder')
+        parent_id = self.libmtp.LIBMTP_FILES_AND_FOLDERS_ROOT if parent.is_storage else parent.object_id
+        x = self.dev.list_folder_by_name(parent.storage_id, parent_id, names)
+        if x is None:
+            raise FileNotFoundError(f'Could not find folder named: {"/".join(names)} in {parent.full_path}')
+        return x
+
+    @synchronous
+    def get_mtp_metadata_by_name(self, parent, *names: str):
+        if not parent.is_folder:
+            raise ValueError(f'{parent.full_path} is not a folder')
+        parent_id = self.libmtp.LIBMTP_FILES_AND_FOLDERS_ROOT if parent.is_storage else parent.object_id
+        x = self.dev.get_metadata_by_name(parent.storage_id, parent_id, names)
+        if x is None:
+            raise DeviceError(f'Could not find file named: {"/".join(names)} in {parent.full_path}')
+        m, errs = x
+        if not m:
+            raise DeviceError(f'Failed to get metadata for: {"/".join(names)} in {parent.full_path} with errors: {self.format_errorstack(errs)}')
+        return m
+
+    @synchronous
+    def get_mtp_file_by_name(self, parent, *names: str, stream=None, callback=None):
+        if not parent.is_folder:
+            raise ValueError(f'{parent.full_path} is not a folder')
+        set_name = stream is None
+        if stream is None:
+            stream = SpooledTemporaryFile(5*1024*1024, '_wpd_receive_file.dat')
+        parent_id = self.libmtp.LIBMTP_FILES_AND_FOLDERS_ROOT if parent.is_storage else parent.object_id
+        x = self.dev.get_file_by_name(parent.storage_id, parent_id, names, stream, callback)
+        if x is None:
+            raise FileNotFoundError(f'Could not find file named: {"/".join(names)} in {parent.full_path}')
+        ok, errs = x
+        if not ok:
+            raise DeviceError(f'Failed to get file: {"/".join(names)} in {parent.full_path} with errors: {self.format_errorstack(errs)}')
+        stream.seek(0)
+        if set_name:
+            stream.name = '/'.join(names)
+        return stream
+
+    @synchronous
     def delete_file_or_folder(self, obj):
         if obj.deleted:
             return
@@ -437,32 +491,3 @@ class MTP_DEVICE(MTPDeviceBase):
                 (obj.full_path, self.format_errorstack(errs)))
         parent.remove_child(obj)
         return parent
-
-
-def develop():
-    from calibre.devices.scanner import DeviceScanner
-    scanner = DeviceScanner()
-    scanner.scan()
-    dev = MTP_DEVICE(None)
-    dev.startup()
-    try:
-        cd = dev.detect_managed_devices(scanner.devices)
-        if cd is None:
-            raise RuntimeError('No MTP device found')
-        dev.open(cd, 'develop')
-        pprint.pprint(dev.dev.storage_info)
-        dev.filesystem_cache
-    finally:
-        dev.shutdown()
-
-
-if __name__ == '__main__':
-    dev = MTP_DEVICE(None)
-    dev.startup()
-    from calibre.devices.scanner import DeviceScanner
-    scanner = DeviceScanner()
-    scanner.scan()
-    devs = scanner.devices
-    dev.debug_managed_device_detection(devs, sys.stdout)
-    dev.set_debug_level(dev.LIBMTP_DEBUG_ALL)
-    dev.shutdown()

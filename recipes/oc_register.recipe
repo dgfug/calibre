@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 # vim:fileencoding=utf-8
-from __future__ import unicode_literals, division, absolute_import, print_function
-import time
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 import json
+import time
 from pprint import pprint
 
 from calibre.web.feeds.news import BasicNewsRecipe
@@ -17,7 +18,7 @@ class OrangeCountyRegister(BasicNewsRecipe):
     auto_cleanup = True
     extra_css = 'div.metaAuthor { display:none;}\n'
     encoding = 'utf8'
-    language = 'en'
+    language = 'en_US'
     needs_subscription = False
     no_stylesheets = True
     oldest_article = 7

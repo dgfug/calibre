@@ -6,13 +6,17 @@ __copyright__ = '2008, Kovid Goyal <kovid at kovidgoyal.net>'
 '''
 Contains the logic for parsing feeds.
 '''
-import time, traceback, copy, re
+import copy
+import re
+import time
+import traceback
+from builtins import _
 
-from calibre.utils.logging import default_log
-from calibre import entity_to_unicode, strftime, force_unicode
-from calibre.utils.date import dt_factory, utcnow, local_tz
+from calibre import force_unicode, replace_entities, strftime
 from calibre.utils.cleantext import clean_ascii_chars, clean_xml_chars
-from polyglot.builtins import unicode_type, string_or_bytes, map
+from calibre.utils.date import dt_factory, local_tz, utcnow
+from calibre.utils.logging import default_log
+from polyglot.builtins import string_or_bytes
 
 
 class Article:
@@ -26,18 +30,17 @@ class Article:
         title = force_unicode(title, 'utf-8')
         self._title = clean_xml_chars(title).strip()
         try:
-            self._title = re.sub(r'&(\S+?);',
-                entity_to_unicode, self._title)
-        except:
+            self._title = replace_entities(self._title)
+        except Exception:
             pass
         self._title = clean_ascii_chars(self._title)
         self.url = url
         self.author = author
         self.toc_thumbnail = None
         self.internal_toc_entries = ()
-        if author and not isinstance(author, unicode_type):
+        if author and not isinstance(author, str):
             author = author.decode('utf-8', 'replace')
-        if summary and not isinstance(summary, unicode_type):
+        if summary and not isinstance(summary, str):
             summary = summary.decode('utf-8', 'replace')
         summary = clean_xml_chars(summary) if summary else summary
         self.summary = summary
@@ -68,13 +71,13 @@ class Article:
 
     @formatted_date.setter
     def formatted_date(self, val):
-        if isinstance(val, unicode_type):
+        if isinstance(val, str):
             self._formatted_date = val
 
     @property
     def title(self):
         t = self._title
-        if not isinstance(t, unicode_type) and hasattr(t, 'decode'):
+        if not isinstance(t, str) and hasattr(t, 'decode'):
             t = t.decode('utf-8', 'replace')
         return t
 
@@ -142,7 +145,7 @@ class Feed:
 
     def populate_from_preparsed_feed(self, title, articles, oldest_article=7,
                            max_articles_per_feed=100):
-        self.title      = unicode_type(title if title else _('Unknown feed'))
+        self.title      = str(title if title else _('Unknown feed'))
         self.description = ''
         self.image_url  = None
         self.articles   = []
@@ -172,8 +175,8 @@ class Feed:
             if delta.days*24*3600 + delta.seconds <= 24*3600*self.oldest_article:
                 self.articles.append(article)
             else:
-                t = strftime(u'%a, %d %b, %Y %H:%M', article.localtime.timetuple())
-                self.logger.debug(u'Skipping article %s (%s) from feed %s as it is too old.'%
+                t = strftime('%a, %d %b, %Y %H:%M', article.localtime.timetuple())
+                self.logger.debug('Skipping article %s (%s) from feed %s as it is too old.'%
                         (title, t, self.title))
             d = item.get('date', '')
             article.formatted_date = d
@@ -190,6 +193,14 @@ class Feed:
                            'updated_parsed'):
             published = item.get(date_field, None)
             if published is not None:
+                break
+        if not published:
+            from dateutil.parser import parse
+            for date_field in ('date', 'published', 'updated'):
+                try:
+                    published = parse(item[date_field]).timetuple()
+                except Exception:
+                    continue
                 break
         if not published:
             published = time.gmtime()
@@ -209,7 +220,7 @@ class Feed:
         author = item.get('author', None)
 
         content = [i.value for i in item.get('content', []) if i.value]
-        content = [i if isinstance(i, unicode_type) else i.decode('utf-8', 'replace')
+        content = [i if isinstance(i, str) else i.decode('utf-8', 'replace')
                 for i in content]
         content = '\n'.join(content)
         if not content.strip():
@@ -225,7 +236,7 @@ class Feed:
                 self.logger.debug('Skipping article %s (%s) from feed %s as it is too old.'%
                                   (title, article.localtime.strftime('%a, %d %b, %Y %H:%M'), self.title))
             except UnicodeDecodeError:
-                if not isinstance(title, unicode_type):
+                if not isinstance(title, str):
                     title = title.decode('utf-8', 'replace')
                 self.logger.debug('Skipping article %s as it is too old'%title)
 
@@ -333,6 +344,7 @@ def feed_from_xml(raw_xml, title=None, oldest_article=7,
                   get_article_url=lambda item: item.get('link', None),
                   log=default_log):
     from calibre.web.feeds.feedparser import parse
+
     # Handle unclosed escaped entities. They trip up feedparser and HBR for one
     # generates them
     raw_xml = re.sub(br'(&amp;#\d+)([^0-9;])', br'\1;\2', raw_xml)

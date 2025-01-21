@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 # License: GPL v3 Copyright: 2021, Kovid Goyal <kovid at kovidgoyal.net>
 
 import os
@@ -56,6 +55,7 @@ def extract(path_or_stream, location):
 
 def test_basic():
     from tempfile import TemporaryDirectory
+
     from calibre import CurrentDir
 
     tdata = {

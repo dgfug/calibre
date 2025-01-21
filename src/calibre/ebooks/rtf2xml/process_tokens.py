@@ -1,4 +1,3 @@
-
 #########################################################################
 #                                                                       #
 #                                                                       #
@@ -11,11 +10,11 @@
 #                                                                       #
 #                                                                       #
 #########################################################################
-import os, re
+import os
+import re
 
-from calibre.ebooks.rtf2xml import copy, check_brackets
+from calibre.ebooks.rtf2xml import check_brackets, copy
 from calibre.ptempfile import better_mktemp
-from polyglot.builtins import unicode_type
 
 from . import open_for_read, open_for_write
 
@@ -183,8 +182,8 @@ class ProcessTokens:
         'ixe'                : ('in', 'index-ital', self.default_func),
         'txe'                : ('in', 'index-see_', self.default_func),
         # table of contents => tc
-        'tcl'               :   ('tc', 'toc-level_', self.default_func),
-        'tcn'               :   ('tc', 'toc-sup-nu', self.default_func),
+        'tcl'                :   ('tc', 'toc-level_', self.default_func),
+        'tcn'                :   ('tc', 'toc-sup-nu', self.default_func),
         # field => fd
         'field'              : ('fd', 'field_____', self.default_func),
         'fldinst'            : ('fd', 'field-inst', self.default_func),
@@ -317,7 +316,7 @@ class ProcessTokens:
         'brdrl'              : ('bd', 'bor-par-le', self.default_func),
         'brdrr'              : ('bd', 'bor-par-ri', self.default_func),
         'box'                : ('bd', 'bor-par-bx', self.default_func),
-        'chbrdr'            : ('bd', 'bor-par-bo', self.default_func),
+        'chbrdr'             : ('bd', 'bor-par-bo', self.default_func),
         'brdrbtw'            : ('bd', 'bor-for-ev', self.default_func),
         'brdrbar'            : ('bd', 'bor-outsid', self.default_func),
         'brdrnone'           : ('bd', 'bor-none__<false', self.two_part_func),
@@ -350,10 +349,10 @@ class ProcessTokens:
         'brdrengrave'        : ('bt', 'bdr-engra_', self.default_func),
         'brdrframe'          : ('bt', 'bdr-frame_', self.default_func),
         'brdrw'              : ('bt', 'bdr-li-wid', self.divide_by_20),
-        'brsp'              : ('bt', 'bdr-sp-wid', self.divide_by_20),
-        'brdrcf'              : ('bt', 'bdr-color_', self.default_func),
+        'brsp'               : ('bt', 'bdr-sp-wid', self.divide_by_20),
+        'brdrcf'             : ('bt', 'bdr-color_', self.default_func),
         # comments
-        # 'comment'              :	('cm', 'comment___', self.default_func),
+        # 'comment'            : ('cm', 'comment___', self.default_func),
         }
         self.__number_type_dict = {
             0:      'Arabic',
@@ -406,191 +405,191 @@ class ProcessTokens:
             255:    'No number',
         }
         self.__language_dict = {
-            1078 	:  'Afrikaans',
-            1052 	:  'Albanian',
-            1025 	:  'Arabic',
-            5121 	:  'Arabic Algeria',
-            15361 	:  'Arabic Bahrain',
-            3073 	:  'Arabic Egypt',
-            1 	    :   'Arabic General',
-            2049 	:  'Arabic Iraq',
-            11265 	:  'Arabic Jordan',
-            13313 	:  'Arabic Kuwait',
-            12289 	:  'Arabic Lebanon',
-            4097 	:  'Arabic Libya',
-            6145 	:  'Arabic Morocco',
-            8193 	:  'Arabic Oman',
-            16385 	:  'Arabic Qatar',
-            10241 	:  'Arabic Syria',
-            7169 	:  'Arabic Tunisia',
-            14337 	:  'Arabic U.A.E.',
-            9217 	:  'Arabic Yemen',
-            1067 	:  'Armenian',
-            1101 	:  'Assamese',
-            2092 	:  'Azeri Cyrillic',
-            1068 	:  'Azeri Latin',
-            1069 	:  'Basque',
-            1093 	:  'Bengali',
-            4122 	:  'Bosnia Herzegovina',
-            1026 	:  'Bulgarian',
-            1109 	:  'Burmese',
-            1059 	:  'Byelorussian',
-            1027 	:  'Catalan',
-            2052 	:  'Chinese China',
-            4 	    :  'Chinese General',
-            3076 	:  'Chinese Hong Kong',
-            4100 	:  'Chinese Singapore',
-            1028 	:  'Chinese Taiwan',
-            1050 	:  'Croatian',
-            1029 	:  'Czech',
-            1030 	:  'Danish',
-            2067 	:  'Dutch Belgium',
-            1043 	:  'Dutch Standard',
-            3081 	:  'English Australia',
-            10249 	:  'English Belize',
-            2057 	:  'English British',
-            4105 	:  'English Canada',
-            9225 	:  'English Caribbean',
-            9 	    :  'English General',
-            6153 	:  'English Ireland',
-            8201 	:  'English Jamaica',
-            5129 	:  'English New Zealand',
-            13321 	:  'English Philippines',
-            7177 	:  'English South Africa',
-            11273 	:  'English Trinidad',
-            1033 	:  'English United States',
-            1061 	:  'Estonian',
-            1080 	:  'Faerose',
-            1065 	:  'Farsi',
-            1035 	:  'Finnish',
-            1036 	:  'French',
-            2060 	:  'French Belgium',
-            11276 	:  'French Cameroon',
-            3084 	:  'French Canada',
-            12300 	:  'French Cote d\'Ivoire',
-            5132 	:  'French Luxembourg',
-            13324 	:  'French Mali',
-            6156 	:  'French Monaco',
-            8204 	:  'French Reunion',
-            10252 	:  'French Senegal',
-            4108 	:  'French Swiss',
-            7180 	:  'French West Indies',
-            9228 	:  'French Democratic Republic of the Congo',
-            1122 	:  'Frisian',
-            1084 	:  'Gaelic',
-            2108 	:  'Gaelic Ireland',
-            1110 	:  'Galician',
-            1079 	:  'Georgian',
-            1031 	:  'German',
-            3079 	:  'German Austrian',
-            5127 	:  'German Liechtenstein',
-            4103 	:  'German Luxembourg',
-            2055 	:  'German Switzerland',
-            1032 	:  'Greek',
-            1095 	:  'Gujarati',
-            1037 	:  'Hebrew',
-            1081 	:  'Hindi',
-            1038 	:  'Hungarian',
-            1039 	:  'Icelandic',
-            1057 	:  'Indonesian',
-            1040 	:  'Italian',
-            2064 	:  'Italian Switzerland',
-            1041 	:  'Japanese',
-            1099 	:  'Kannada',
-            1120 	:  'Kashmiri',
-            2144 	:  'Kashmiri India',
-            1087 	:  'Kazakh',
-            1107 	:  'Khmer',
-            1088 	:  'Kirghiz',
-            1111 	:  'Konkani',
-            1042 	:  'Korean',
-            2066 	:  'Korean Johab',
-            1108 	:  'Lao',
-            1062 	:  'Latvian',
-            1063 	:  'Lithuanian',
-            2087 	:  'Lithuanian Classic',
-            1086 	:  'Malay',
-            2110 	:  'Malay Brunei Darussalam',
-            1100 	:  'Malayalam',
-            1082 	:  'Maltese',
-            1112 	:  'Manipuri',
-            1102 	:  'Marathi',
-            1104 	:  'Mongolian',
-            1121 	:  'Nepali',
-            2145 	:  'Nepali India',
-            1044 	:  'Norwegian Bokmal',
-            2068 	:  'Norwegian Nynorsk',
-            1096 	:  'Oriya',
-            1045 	:  'Polish',
-            1046 	:  'Portuguese (Brazil)',
-            2070 	:  'Portuguese (Portugal)',
-            1094 	:  'Punjabi',
-            1047 	:  'Rhaeto-Romanic',
-            1048 	:  'Romanian',
-            2072 	:  'Romanian Moldova',
-            1049 	:  'Russian',
-            2073 	:  'Russian Moldova',
-            1083 	:  'Sami Lappish',
-            1103 	:  'Sanskrit',
-            3098 	:  'Serbian Cyrillic',
-            2074 	:  'Serbian Latin',
-            1113 	:  'Sindhi',
-            1051 	:  'Slovak',
-            1060 	:  'Slovenian',
-            1070 	:  'Sorbian',
-            11274 	:  'Spanish Argentina',
-            16394 	:  'Spanish Bolivia',
-            13322 	:  'Spanish Chile',
-            9226 	:  'Spanish Colombia',
-            5130 	:  'Spanish Costa Rica',
-            7178 	:  'Spanish Dominican Republic',
-            12298 	:  'Spanish Ecuador',
-            17418 	:  'Spanish El Salvador',
-            4106 	:  'Spanish Guatemala',
-            18442 	:  'Spanish Honduras',
-            2058 	:  'Spanish Mexico',
-            3082 	:  'Spanish Modern',
-            19466 	:  'Spanish Nicaragua',
-            6154 	:  'Spanish Panama',
-            15370 	:  'Spanish Paraguay',
-            10250 	:  'Spanish Peru',
-            20490 	:  'Spanish Puerto Rico',
-            1034 	:  'Spanish Traditional',
-            14346 	:  'Spanish Uruguay',
-            8202 	:  'Spanish Venezuela',
-            1072 	:  'Sutu',
-            1089 	:  'Swahili',
-            1053 	:  'Swedish',
-            2077 	:  'Swedish Finland',
-            1064 	:  'Tajik',
-            1097 	:  'Tamil',
-            1092 	:  'Tatar',
-            1098 	:  'Telugu',
-            1054 	:  'Thai',
-            1105 	:  'Tibetan',
-            1073 	:  'Tsonga',
-            1074 	:  'Tswana',
-            1055 	:  'Turkish',
-            1090 	:  'Turkmen',
-            1058 	:  'Ukranian',
-            1056 	:  'Urdu',
-            2080 	:  'Urdu India',
-            2115 	:  'Uzbek Cyrillic',
-            1091 	:  'Uzbek Latin',
-            1075 	:  'Venda',
-            1066 	:  'Vietnamese',
-            1106 	:  'Welsh',
-            1076 	:  'Xhosa',
-            1085 	:  'Yiddish',
-            1077 	:  'Zulu',
-            1024 	:  'Unkown',
-            255 	:  'Unkown',
+            1078    :  'Afrikaans',
+            1052    :  'Albanian',
+            1025    :  'Arabic',
+            5121    :  'Arabic Algeria',
+            15361   :  'Arabic Bahrain',
+            3073    :  'Arabic Egypt',
+            1       :   'Arabic General',
+            2049    :  'Arabic Iraq',
+            11265   :  'Arabic Jordan',
+            13313   :  'Arabic Kuwait',
+            12289   :  'Arabic Lebanon',
+            4097    :  'Arabic Libya',
+            6145    :  'Arabic Morocco',
+            8193    :  'Arabic Oman',
+            16385   :  'Arabic Qatar',
+            10241   :  'Arabic Syria',
+            7169    :  'Arabic Tunisia',
+            14337   :  'Arabic U.A.E.',
+            9217    :  'Arabic Yemen',
+            1067    :  'Armenian',
+            1101    :  'Assamese',
+            2092    :  'Azeri Cyrillic',
+            1068    :  'Azeri Latin',
+            1069    :  'Basque',
+            1093    :  'Bengali',
+            4122    :  'Bosnia Herzegovina',
+            1026    :  'Bulgarian',
+            1109    :  'Burmese',
+            1059    :  'Byelorussian',
+            1027    :  'Catalan',
+            2052    :  'Chinese China',
+            4       :  'Chinese General',
+            3076    :  'Chinese Hong Kong',
+            4100    :  'Chinese Singapore',
+            1028    :  'Chinese Taiwan',
+            1050    :  'Croatian',
+            1029    :  'Czech',
+            1030    :  'Danish',
+            2067    :  'Dutch Belgium',
+            1043    :  'Dutch Standard',
+            3081    :  'English Australia',
+            10249   :  'English Belize',
+            2057    :  'English British',
+            4105    :  'English Canada',
+            9225    :  'English Caribbean',
+            9       :  'English General',
+            6153    :  'English Ireland',
+            8201    :  'English Jamaica',
+            5129    :  'English New Zealand',
+            13321   :  'English Philippines',
+            7177    :  'English South Africa',
+            11273   :  'English Trinidad',
+            1033    :  'English United States',
+            1061    :  'Estonian',
+            1080    :  'Faerose',
+            1065    :  'Farsi',
+            1035    :  'Finnish',
+            1036    :  'French',
+            2060    :  'French Belgium',
+            11276   :  'French Cameroon',
+            3084    :  'French Canada',
+            12300   :  'French Cote d\'Ivoire',
+            5132    :  'French Luxembourg',
+            13324   :  'French Mali',
+            6156    :  'French Monaco',
+            8204    :  'French Reunion',
+            10252   :  'French Senegal',
+            4108    :  'French Swiss',
+            7180    :  'French West Indies',
+            9228    :  'French Democratic Republic of the Congo',
+            1122    :  'Frisian',
+            1084    :  'Gaelic',
+            2108    :  'Gaelic Ireland',
+            1110    :  'Galician',
+            1079    :  'Georgian',
+            1031    :  'German',
+            3079    :  'German Austrian',
+            5127    :  'German Liechtenstein',
+            4103    :  'German Luxembourg',
+            2055    :  'German Switzerland',
+            1032    :  'Greek',
+            1095    :  'Gujarati',
+            1037    :  'Hebrew',
+            1081    :  'Hindi',
+            1038    :  'Hungarian',
+            1039    :  'Icelandic',
+            1057    :  'Indonesian',
+            1040    :  'Italian',
+            2064    :  'Italian Switzerland',
+            1041    :  'Japanese',
+            1099    :  'Kannada',
+            1120    :  'Kashmiri',
+            2144    :  'Kashmiri India',
+            1087    :  'Kazakh',
+            1107    :  'Khmer',
+            1088    :  'Kirghiz',
+            1111    :  'Konkani',
+            1042    :  'Korean',
+            2066    :  'Korean Johab',
+            1108    :  'Lao',
+            1062    :  'Latvian',
+            1063    :  'Lithuanian',
+            2087    :  'Lithuanian Classic',
+            1086    :  'Malay',
+            2110    :  'Malay Brunei Darussalam',
+            1100    :  'Malayalam',
+            1082    :  'Maltese',
+            1112    :  'Manipuri',
+            1102    :  'Marathi',
+            1104    :  'Mongolian',
+            1121    :  'Nepali',
+            2145    :  'Nepali India',
+            1044    :  'Norwegian Bokmal',
+            2068    :  'Norwegian Nynorsk',
+            1096    :  'Oriya',
+            1045    :  'Polish',
+            1046    :  'Portuguese (Brazil)',
+            2070    :  'Portuguese (Portugal)',
+            1094    :  'Punjabi',
+            1047    :  'Rhaeto-Romanic',
+            1048    :  'Romanian',
+            2072    :  'Romanian Moldova',
+            1049    :  'Russian',
+            2073    :  'Russian Moldova',
+            1083    :  'Sami Lappish',
+            1103    :  'Sanskrit',
+            3098    :  'Serbian Cyrillic',
+            2074    :  'Serbian Latin',
+            1113    :  'Sindhi',
+            1051    :  'Slovak',
+            1060    :  'Slovenian',
+            1070    :  'Sorbian',
+            11274   :  'Spanish Argentina',
+            16394   :  'Spanish Bolivia',
+            13322   :  'Spanish Chile',
+            9226    :  'Spanish Colombia',
+            5130    :  'Spanish Costa Rica',
+            7178    :  'Spanish Dominican Republic',
+            12298   :  'Spanish Ecuador',
+            17418   :  'Spanish El Salvador',
+            4106    :  'Spanish Guatemala',
+            18442   :  'Spanish Honduras',
+            2058    :  'Spanish Mexico',
+            3082    :  'Spanish Modern',
+            19466   :  'Spanish Nicaragua',
+            6154    :  'Spanish Panama',
+            15370   :  'Spanish Paraguay',
+            10250   :  'Spanish Peru',
+            20490   :  'Spanish Puerto Rico',
+            1034    :  'Spanish Traditional',
+            14346   :  'Spanish Uruguay',
+            8202    :  'Spanish Venezuela',
+            1072    :  'Sutu',
+            1089    :  'Swahili',
+            1053    :  'Swedish',
+            2077    :  'Swedish Finland',
+            1064    :  'Tajik',
+            1097    :  'Tamil',
+            1092    :  'Tatar',
+            1098    :  'Telugu',
+            1054    :  'Thai',
+            1105    :  'Tibetan',
+            1073    :  'Tsonga',
+            1074    :  'Tswana',
+            1055    :  'Turkish',
+            1090    :  'Turkmen',
+            1058    :  'Ukranian',
+            1056    :  'Urdu',
+            2080    :  'Urdu India',
+            2115    :  'Uzbek Cyrillic',
+            1091    :  'Uzbek Latin',
+            1075    :  'Venda',
+            1066    :  'Vietnamese',
+            1106    :  'Welsh',
+            1076    :  'Xhosa',
+            1085    :  'Yiddish',
+            1077    :  'Zulu',
+            1024    :  'Unkown',
+            255     :  'Unkown',
         }
     """
         # unknown
         # These must get passed on because they occurred after \\*
         'do'                :   ('un', 'unknown___', self.default_func),
-        'company'           :	('un', 'company___', self.default_func),
+        'company'           :   ('un', 'company___', self.default_func),
         'shpinst'           :   ('un', 'unknown___', self.default_func),
         'panose'            :   ('un', 'unknown___', self.default_func),
         'falt'              :   ('un', 'unknown___', self.default_func),
@@ -604,9 +603,9 @@ class ProcessTokens:
         'generator'         :   ('un', 'unknown___', self.default_func),
         'ftnsep'            :   ('un', 'unknown___', self.default_func),
         'aftnsep'           :   ('un', 'unknown___', self.default_func),
-        'aftnsepc'           :   ('un', 'unknown___', self.default_func),
+        'aftnsepc'          :   ('un', 'unknown___', self.default_func),
         'aftncn'            :   ('un', 'unknown___', self.default_func),
-        'objclass'           :   ('un', 'unknown___', self.default_func),
+        'objclass'          :   ('un', 'unknown___', self.default_func),
         'objdata'           :   ('un', 'unknown___', self.default_func),
         'picprop'           :   ('un', 'unknown___', self.default_func),
         'blipuid'           :   ('un', 'unknown___', self.default_func),
@@ -626,12 +625,12 @@ class ProcessTokens:
     def default_func(self, pre, token, num):
         if num is None:
             num = 'true'
-        return 'cw<%s<%s<nu<%s\n' % (pre, token, num)
+        return f'cw<{pre}<{token}<nu<{num}\n'
 
     def colorz_func(self, pre, token, num):
         if num is None:
             num = '0'
-        return 'cw<%s<%s<nu<%s\n' % (pre, token, num)
+        return f'cw<{pre}<{token}<nu<{num}\n'
 
     def __list_type_func(self, pre, token, num):
         type = 'arabic'
@@ -650,7 +649,7 @@ class ProcessTokens:
                     msg = 'No type for "%s" in self.__number_type_dict\n'
                     raise self.__bug_handler
                 type = 'Arabic'
-        return 'cw<%s<%s<nu<%s\n' % (pre, token, type)
+        return f'cw<{pre}<{token}<nu<{type}\n'
 
     def __language_func(self, pre, token, num):
         lang_name = self.__language_dict.get(int(re.search('[0-9]+', num).group()))
@@ -659,23 +658,23 @@ class ProcessTokens:
             if self.__run_level > 3:
                 msg = 'No entry for number "%s"' % num
                 raise self.__bug_handler(msg)
-        return 'cw<%s<%s<nu<%s\n' % (pre, token, lang_name)
+        return f'cw<{pre}<{token}<nu<{lang_name}\n'
 
     def two_part_func(self, pre, token, num):
         list = token.split("<")
         token = list[0]
         num = list[1]
-        return 'cw<%s<%s<nu<%s\n' % (pre, token, num)
+        return f'cw<{pre}<{token}<nu<{num}\n'
         # return 'cw<nu<nu<nu<%s>num<%s\n' % (token, num)
 
     def divide_by_2(self, pre, token, num):
         num = self.divide_num(num, 2)
-        return 'cw<%s<%s<nu<%s\n' % (pre, token, num)
+        return f'cw<{pre}<{token}<nu<{num}\n'
         # return 'cw<nu<nu<nu<%s>%s<%s\n' % (token, num, token)
 
     def divide_by_20(self, pre, token, num):
         num = self.divide_num(num, 20)
-        return 'cw<%s<%s<nu<%s\n' % (pre, token, num)
+        return f'cw<{pre}<{token}<nu<{num}\n'
         # return 'cw<nu<nu<nu<%s>%s<%s\n' % (token, num, token)
 
     def text_func(self, pre, token, num=None):
@@ -695,21 +694,21 @@ class ProcessTokens:
         if num[-1] == ';':
             num = num[:-1]
             third_field = 'en'
-        num = unicode_type('%X' % int(num))
+        num = '%X' % int(num)
         if len(num) != 2:
             num = "0" + num
-        return 'cw<%s<%s<%s<%s\n' % (pre, token, third_field, num)
+        return f'cw<{pre}<{token}<{third_field}<{num}\n'
         # return 'cw<cl<%s<nu<nu<%s>%s<%s\n' % (third_field, token, num, token)
 
     def bool_st_func(self, pre, token, num):
         if num is None or num == '' or num == '1':
-            return 'cw<%s<%s<nu<true\n' % (pre, token)
+            return f'cw<{pre}<{token}<nu<true\n'
             # return 'cw<nu<nu<nu<%s>true<%s\n' % (token, token)
         elif num == '0':
-            return 'cw<%s<%s<nu<false\n' % (pre, token)
+            return f'cw<{pre}<{token}<nu<false\n'
             # return 'cw<nu<nu<nu<%s>false<%s\n' % (token, token)
         else:
-            msg = "boolean should have some value module process tokens\ntoken is %s\n'%s'\n" % (token, num)
+            msg = f"boolean should have some value module process tokens\ntoken is {token}\n'{num}'\n"
             raise self.__bug_handler(msg)
 
     def __no_sup_sub_func(self, pre, token, num):
@@ -721,7 +720,7 @@ class ProcessTokens:
         try:
             # calibre why ignore negative number? Wrong in case of \fi
             numerator = float(re.search('[0-9.\\-]+', numerator).group())
-        except TypeError as msg:
+        except TypeError:
             if self.__run_level > 3:
                 msg = ('No number to process?\nthis indicates that the token \\(\\li\\) \
                 should have a number and does not\nnumerator is \
@@ -732,7 +731,7 @@ class ProcessTokens:
             return 0
         num = '%0.2f' % round(numerator/denominator, 2)
         return num
-        string_num = unicode_type(num)
+        string_num = str(num)
         if string_num[-2:] == ".0":
             string_num = string_num[:-2]
         return string_num

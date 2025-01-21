@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 
 
 __license__ = 'GPL v3'
@@ -7,14 +6,14 @@ __copyright__ = '2013, Kovid Goyal <kovid at kovidgoyal.net>'
 
 from functools import partial
 
-from lxml import etree
 from html5lib.constants import cdataElements, rcdataElements
+from lxml import etree
 
-from calibre.ebooks.oeb.polish.tests.base import BaseTest
-from calibre.ebooks.oeb.polish.parsing import parse_html5 as parse
-from calibre.ebooks.oeb.base import XPath, XHTML_NS, SVG_NS, XLINK_NS
+from calibre.ebooks.oeb.base import SVG_NS, XHTML_NS, XLINK_NS, XPath
 from calibre.ebooks.oeb.parse_utils import html5_parse
-from polyglot.builtins import iteritems, range
+from calibre.ebooks.oeb.polish.parsing import parse_html5 as parse
+from calibre.ebooks.oeb.polish.tests.base import BaseTest
+from polyglot.builtins import iteritems
 
 
 def nonvoid_cdata_elements(test, parse_function):
@@ -39,7 +38,7 @@ def namespaces(test, parse_function):
         ae(len(matches), 1, err)
         ae(matches[0].prefix, prefix, err)
 
-    markup = ''' <html xmlns="{xhtml}"><head><body id="test"></html> '''.format(xhtml=XHTML_NS)
+    markup = f''' <html xmlns="{XHTML_NS}"><head><body id="test"></html> '''
     root = parse_function(markup)
     ae(
         len(XPath('//h:body[@id="test"]')(root)), 1,
@@ -167,6 +166,13 @@ basic_checks = (nonvoid_cdata_elements, namespaces, space_characters,
 
 class ParsingTests(BaseTest):
 
+    def test_lxml_tostring(self):
+        ' Test for bug in some versions of lxml that causes incorrect serialization of sub-trees'
+        from html5_parser import parse
+        root = parse('<p>a<p>b<p>c')
+        p = root.xpath('//p')[0]
+        self.assertEqual(etree.tostring(p, encoding=str), '<p>a</p>')
+
     def test_conversion_parser(self):
         ' Test parsing with the HTML5 parser used for conversion '
         for test in basic_checks:
@@ -186,7 +192,7 @@ class ParsingTests(BaseTest):
             root = parse(src, discard_namespaces=ds)
             for tag, lnum in iteritems({'html':2, 'head':3, 'body':3, 'p':3, 'svg':4, 'image':4, 'b':5}):
                 elem = root.xpath('//*[local-name()="%s"]' % tag)[0]
-                self.assertEqual(lnum, elem.sourceline, 'Line number incorrect for %s, source: %s:' % (tag, src))
+                self.assertEqual(lnum, elem.sourceline, f'Line number incorrect for {tag}, source: {src}:')
 
         for ds in (False, True):
             src = '\n<html>\n<p b=1 a=2 c=3 d=4 e=5 f=6 g=7 h=8><svg b=1 a=2 c=3 d=4 e=5 f=6 g=7 h=8>\n'
@@ -204,11 +210,13 @@ class ParsingTests(BaseTest):
 
 def timing():
     import sys
+
+    from html5lib import parse as vanilla
+
     from calibre.ebooks.chardet import xml_to_unicode
     from calibre.utils.monotonic import monotonic
-    from html5lib import parse as vanilla
     filename = sys.argv[-1]
-    with lopen(filename, 'rb') as f:
+    with open(filename, 'rb') as f:
         raw = f.read()
     raw = xml_to_unicode(raw)[0]
 
@@ -219,4 +227,4 @@ def timing():
             f(raw)
             timings.append(monotonic() - st)
         avg = sum(timings)/len(timings)
-        print('Average time for %s: %.2g' % (name, avg))
+        print(f'Average time for {name}: {avg:.2g}')

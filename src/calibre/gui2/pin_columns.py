@@ -1,13 +1,11 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 # License: GPLv3 Copyright: 2018, Kovid Goyal <kovid at kovidgoyal.net>
 
 
 from qt.core import QSplitter, QTableView
 
-from calibre.gui2.library import DEFAULT_SORT
 from calibre.gui2 import gprefs
-from polyglot.builtins import range
+from calibre.gui2.library import DEFAULT_SORT
 
 
 class PinTableView(QTableView):
@@ -129,7 +127,7 @@ class PinTableView(QTableView):
 class PinContainer(QSplitter):
 
     def __init__(self, books_view, parent=None):
-        QSplitter.__init__(self, parent)
+        super().__init__(parent)
         self.setChildrenCollapsible(False)
         self.books_view = books_view
         self.addWidget(books_view)

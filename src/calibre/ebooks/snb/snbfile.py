@@ -1,14 +1,14 @@
-# -*- coding: utf-8 -*-
-
-
 __license__   = 'GPL v3'
 __copyright__ = '2010, Li Fanxi <lifanxi@freemindworld.com>'
 __docformat__ = 'restructuredtext en'
 
-import sys, struct, zlib, bz2, os
+import bz2
+import os
+import struct
+import sys
+import zlib
 
 from calibre import guess_type
-from polyglot.builtins import unicode_type
 
 
 class FileStream:
@@ -101,7 +101,7 @@ class SNBFile:
                 f.fileBody = snbFile.read(f.fileSize)
                 binPos += f.fileSize
             else:
-                raise ValueError("Invalid file: {} {}".format(f.attr, f.fileName))
+                raise ValueError(f"Invalid file: {f.attr} {f.fileName}")
 
     def ParseFile(self, vfat, fileCount):
         fileNames = vfat[fileCount*12:].split(b'\0')
@@ -160,7 +160,7 @@ class SNBFile:
         with open(os.path.join(tdir,fileName), 'rb') as data:
             f.fileBody = data.read()
         f.fileName = fileName.replace(os.sep, '/')
-        if isinstance(f.fileName, unicode_type):
+        if isinstance(f.fileName, str):
             f.fileName = f.fileName.encode("ascii", "ignore")
         self.files.append(f)
 
@@ -171,7 +171,7 @@ class SNBFile:
         with open(os.path.join(tdir,fileName), 'rb') as data:
             f.fileBody = data.read()
         f.fileName = fileName.replace(os.sep, '/')
-        if isinstance(f.fileName, unicode_type):
+        if isinstance(f.fileName, str):
             f.fileName = f.fileName.encode("ascii", "ignore")
         self.files.append(f)
 
@@ -220,7 +220,7 @@ class SNBFile:
                 f.contentOffset = len(binStream)
                 binStream += f.fileBody
             else:
-                raise Exception("Unknown file type: {} {}".format(f.attr, f.fileName))
+                raise Exception(f"Unknown file type: {f.attr} {f.fileName}")
         vfatCompressed = zlib.compress(vfat+fileNameTable)
 
         # File header part 2

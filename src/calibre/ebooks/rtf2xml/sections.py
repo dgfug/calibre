@@ -1,4 +1,3 @@
-
 #########################################################################
 #                                                                       #
 #                                                                       #
@@ -11,11 +10,11 @@
 #                                                                       #
 #                                                                       #
 #########################################################################
-import sys, os
+import os
+import sys
 
 from calibre.ebooks.rtf2xml import copy
 from calibre.ptempfile import better_mktemp
-from polyglot.builtins import unicode_type
 
 from . import open_for_read, open_for_write
 
@@ -43,7 +42,7 @@ class Sections:
     should be nested inside one section tag. After the index is complete, a new
     section should begin.
     In order to write the sections outside of the field blocks, I have to store
-    all of the field block as a string. When I ecounter the \\sect tag, add one to
+    all of the field block as a string. When I encounter the \\sect tag, add one to
     the section counter, but store this number in a list. Likewise, store the
     information describing the section in another list.
     When I reach the end of the field block, choose the first item from the
@@ -276,14 +275,14 @@ class Sections:
             my_string += 'mi<tg<close_____<section\n'
         else:
             self.__found_first_sec = 1
-        my_string += 'mi<tg<open-att__<section<num>%s' % unicode_type(self.__section_num)
-        my_string += '<num-in-level>%s' % unicode_type(self.__section_num)
+        my_string += 'mi<tg<open-att__<section<num>%s' % str(self.__section_num)
+        my_string += '<num-in-level>%s' % str(self.__section_num)
         my_string += '<type>rtf-native'
         my_string += '<level>0'
         keys = self.__section_values.keys()
         if len(keys) > 0:
             for key in keys:
-                my_string += '<%s>%s' % (key, self.__section_values[key])
+                my_string += f'<{key}>{self.__section_values[key]}'
         my_string += '\n'
         my_string += self.__mark_end
         # # my_string += line
@@ -359,7 +358,7 @@ class Sections:
                     '<num-in-level>%s'
                     '<type>rtf-native'
                     '<level>0\n'
-                    % (unicode_type(self.__section_num), unicode_type(self.__section_num))
+                    % (str(self.__section_num), str(self.__section_num))
                     )
             self.__found_first_sec = 1
         elif self.__token_info == 'tx<nu<__________':
@@ -370,7 +369,7 @@ class Sections:
                     '<num-in-level>%s'
                     '<type>rtf-native'
                     '<level>0\n'
-                    % (unicode_type(self.__section_num), unicode_type(self.__section_num))
+                    % (str(self.__section_num), str(self.__section_num))
                     )
             self.__write_obj.write(
                 'cw<pf<par-def___<true\n'
@@ -463,17 +462,17 @@ class Sections:
         self.__field_num = self.__field_num[1:]
         self.__write_obj.write(
         'mi<tg<close_____<section\n'
-        'mi<tg<open-att__<section<num>%s' % unicode_type(num)
+        'mi<tg<open-att__<section<num>%s' % str(num)
         )
         if self.__list_of_sec_values:
             keys =  self.__list_of_sec_values[0].keys()
             for key in keys:
                 self.__write_obj.write(
-                '<%s>%s\n' % (key, self.__list_of_sec_values[0][key]))
+                f'<{key}>{self.__list_of_sec_values[0][key]}\n')
             self.__list_of_sec_values = self.__list_of_sec_values[1:]
         self.__write_obj.write('<level>0')
         self.__write_obj.write('<type>rtf-native')
-        self.__write_obj.write('<num-in-level>%s' % unicode_type(self.__section_num))
+        self.__write_obj.write('<num-in-level>%s' % str(self.__section_num))
         self.__write_obj.write('\n')
         # Look here
 

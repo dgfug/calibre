@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 __license__   = 'GPL v3'
@@ -12,8 +11,11 @@ BASH completion for calibre commands that are too complex for simple
 completion.
 '''
 
-import sys, os, shlex, glob, re
-
+import glob
+import os
+import re
+import shlex
+import sys
 
 prints = print
 

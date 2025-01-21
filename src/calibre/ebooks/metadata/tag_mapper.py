@@ -1,11 +1,12 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 # License: GPLv3 Copyright: 2015, Kovid Goyal <kovid at kovidgoyal.net>
 
 
 from collections import deque
 
-from polyglot.builtins import filter, unicode_type
+from calibre.utils.icu import lower as icu_lower
+from calibre.utils.icu import upper as icu_upper
+from polyglot.builtins import as_unicode
 
 
 def compile_pat(pat):
@@ -15,25 +16,29 @@ def compile_pat(pat):
 
 
 def matcher(rule):
+    import unicodedata
+    def n(x):
+        return unicodedata.normalize('NFC', as_unicode(x or '', errors='replace'))
+
     mt = rule['match_type']
     if mt == 'one_of':
-        tags = {icu_lower(x.strip()) for x in rule['query'].split(',')}
+        tags = {icu_lower(n(x.strip())) for x in rule['query'].split(',')}
         return lambda x: x in tags
 
     if mt == 'not_one_of':
-        tags = {icu_lower(x.strip()) for x in rule['query'].split(',')}
+        tags = {icu_lower(n(x.strip())) for x in rule['query'].split(',')}
         return lambda x: x not in tags
 
     if mt == 'matches':
-        pat = compile_pat(rule['query'])
+        pat = compile_pat(n(rule['query']))
         return lambda x: pat.match(x) is not None
 
     if mt == 'not_matches':
-        pat = compile_pat(rule['query'])
+        pat = compile_pat(n(rule['query']))
         return lambda x: pat.match(x) is None
 
     if mt == 'has':
-        s = icu_lower(rule['query'])
+        s = icu_lower(n(rule['query']))
         return lambda x: s in x
 
     return lambda x: False
@@ -145,9 +150,9 @@ def find_tests():
             def run(rules, tags, expected):
                 if isinstance(rules, dict):
                     rules = [rules]
-                if isinstance(tags, unicode_type):
+                if isinstance(tags, str):
                     tags = [x.strip() for x in tags.split(',')]
-                if isinstance(expected, unicode_type):
+                if isinstance(expected, str):
                     expected = [x.strip() for x in expected.split(',')]
                 ans = map_tags(tags, rules)
                 self.assertEqual(ans, expected)

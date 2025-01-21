@@ -1,14 +1,15 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 __license__   = 'GPL v3'
 __copyright__ = '2009, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import os, re
-from calibre.utils.date import isoformat, now
+import os
+import re
+
 from calibre import guess_type
+from calibre.utils.date import isoformat, now
 from polyglot.builtins import iteritems
 
 
@@ -167,8 +168,9 @@ class MergeMetadata:
         return id
 
     def remove_old_cover(self, cover_item, new_cover_href=None):
-        from calibre.ebooks.oeb.base import XPath, XLINK
         from lxml import etree
+
+        from calibre.ebooks.oeb.base import XLINK, XPath
 
         self.oeb.manifest.remove(cover_item)
 

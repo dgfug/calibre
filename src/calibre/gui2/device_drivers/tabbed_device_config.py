@@ -1,21 +1,31 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:fdm=marker:ai
 
 __license__   = 'GPL v3'
 __copyright__ = '2015, Kovid Goyal <kovid at kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import weakref, textwrap
+import textwrap
+import weakref
 
 from qt.core import (
-    QWidget, QLabel, QTabWidget, QGridLayout, QLineEdit, QVBoxLayout,
-    QGroupBox, QComboBox, QSizePolicy, QDialog, QDialogButtonBox, QCheckBox,
-    QSpacerItem)
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QGridLayout,
+    QGroupBox,
+    QLabel,
+    QLineEdit,
+    QSizePolicy,
+    QSpacerItem,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
+)
 
 from calibre.ebooks import BOOK_EXTENSIONS
-from calibre.gui2.device_drivers.mtp_config import (FormatsConfig, TemplateConfig)
-from calibre.devices.usbms.driver import debug_print
-from polyglot.builtins import unicode_type, range
+from calibre.gui2.device_drivers.mtp_config import FormatsConfig, TemplateConfig
+from calibre.prints import debug_print
 
 
 def wrap_msg(msg):
@@ -154,7 +164,7 @@ class TabbedDeviceConfig(QTabWidget):
     def __getattr__(self, attr_name):
         "If the object doesn't have an attribute, then check each tab."
         try:
-            return super(TabbedDeviceConfig, self).__getattr__(attr_name)
+            return super().__getattr__(attr_name)
         except AttributeError as ae:
             for i in range(0, self.count()):
                 atab = self.widget(i)
@@ -236,7 +246,7 @@ class DeviceConfigTab(QWidget):  # {{{
 
     def __getattr__(self, attr_name):
         try:
-            return super(DeviceConfigTab, self).__getattr__(attr_name)
+            return super().__getattr__(attr_name)
         except AttributeError as ae:
             for awidget in self.device_widgets:
                 try:
@@ -249,7 +259,7 @@ class DeviceConfigTab(QWidget):  # {{{
 class ExtraCustomization(DeviceConfigTab):  # {{{
 
     def __init__(self, extra_customization_message, extra_customization_choices, device_settings):
-        super(ExtraCustomization, self).__init__()
+        super().__init__()
 
         debug_print("ExtraCustomization.__init__ - extra_customization_message=", extra_customization_message)
         debug_print("ExtraCustomization.__init__ - extra_customization_choices=", extra_customization_choices)
@@ -276,11 +286,15 @@ class ExtraCustomization(DeviceConfigTab):  # {{{
             if isinstance(extra_customization_message, list):
                 self.opt_extra_customization = []
                 if len(extra_customization_message) > 6:
-                    row_func = lambda x, y: ((x//2) * 2) + y
-                    col_func = lambda x: x%2
+                    def row_func(x, y):
+                        return (x // 2 * 2 + y)
+                    def col_func(x):
+                        return (x % 2)
                 else:
-                    row_func = lambda x, y: x*2 + y
-                    col_func = lambda x: 0
+                    def row_func(x, y):
+                        return (x * 2 + y)
+                    def col_func(x):
+                        return 0
 
                 for i, m in enumerate(extra_customization_message):
                     label_text, tt = parse_msg(m)
@@ -339,11 +353,11 @@ class ExtraCustomization(DeviceConfigTab):  # {{{
                     if hasattr(self.opt_extra_customization[i], 'isChecked'):
                         ec.append(self.opt_extra_customization[i].isChecked())
                     elif hasattr(self.opt_extra_customization[i], 'currentText'):
-                        ec.append(unicode_type(self.opt_extra_customization[i].currentText()).strip())
+                        ec.append(str(self.opt_extra_customization[i].currentText()).strip())
                     else:
-                        ec.append(unicode_type(self.opt_extra_customization[i].text()).strip())
+                        ec.append(str(self.opt_extra_customization[i].text()).strip())
             else:
-                ec = unicode_type(self.opt_extra_customization.text()).strip()
+                ec = str(self.opt_extra_customization.text()).strip()
                 if not ec:
                     ec = None
 
@@ -370,9 +384,9 @@ class DeviceOptionsGroupBox(QGroupBox):
 
 
 if __name__ == '__main__':
-    from calibre.gui2 import Application
     from calibre.devices.kobo.driver import KOBO
     from calibre.devices.scanner import DeviceScanner
+    from calibre.gui2 import Application
     s = DeviceScanner()
     s.scan()
     app = Application([])
@@ -390,6 +404,6 @@ if __name__ == '__main__':
     d.l.addWidget(bb)
     bb.accepted.connect(d.accept)
     bb.rejected.connect(d.reject)
-    if d.exec_() == QDialog.DialogCode.Accepted:
+    if d.exec() == QDialog.DialogCode.Accepted:
         cw.commit()
     dev.shutdown()

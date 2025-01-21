@@ -1,23 +1,26 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 __license__   = 'GPL v3'
 __copyright__ = '2010, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import re, os, traceback, shutil
-from threading import Thread
+import os
+import re
+import shutil
+import traceback
 from operator import itemgetter
+from threading import Thread
 
-from calibre.ptempfile import TemporaryDirectory
+from calibre import isbytestring
+from calibre.constants import filesystem_encoding
 from calibre.ebooks.metadata.opf2 import OPF
 from calibre.library.database2 import LibraryDatabase2
 from calibre.library.prefs import DBPrefs
-from calibre.constants import filesystem_encoding
+from calibre.ptempfile import TemporaryDirectory
 from calibre.utils.date import utcfromtimestamp
-from calibre import isbytestring
-from polyglot.builtins import iteritems, filter
+from calibre.utils.localization import _
+from polyglot.builtins import iteritems
 
 NON_EBOOK_EXTENSIONS = frozenset([
         'jpg', 'jpeg', 'gif', 'png', 'bmp',
@@ -40,7 +43,7 @@ class RestoreDatabase(LibraryDatabase2):
 class Restore(Thread):
 
     def __init__(self, library_path, progress_callback=None):
-        super(Restore, self).__init__()
+        super().__init__()
         if isbytestring(library_path):
             library_path = library_path.decode(filesystem_encoding)
         self.src_library_path = os.path.abspath(library_path)
@@ -114,7 +117,7 @@ class Restore(Thread):
                     self.create_cc_metadata()
                 self.restore_books()
                 if self.successes == 0 and len(self.dirs) > 0:
-                    raise Exception(('Something bad happened'))
+                    raise Exception('Something bad happened')
                 self.replace_db()
         except:
             self.tb = traceback.format_exc()

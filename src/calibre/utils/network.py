@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 # License: GPLv3 Copyright: 2010, Kovid Goyal <kovid at kovidgoyal.net>
 
 
@@ -109,3 +108,22 @@ def internet_connected():
         DummyNetworkStatus()
 
     return internet_connected.checker()
+
+def is_ipv6_addr(addr):
+    import socket
+    try:
+        socket.inet_pton(socket.AF_INET6, addr)
+    except Exception:
+        return False
+    return True
+
+
+def format_addr_for_url(addr):
+    if is_ipv6_addr(addr):
+        addr = f'[{addr}]'
+    return addr
+
+
+def get_fallback_server_addr():
+    from socket import has_dualstack_ipv6
+    return '::' if has_dualstack_ipv6() else '0.0.0.0'

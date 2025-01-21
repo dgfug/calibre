@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 __license__   = 'GPL v3'
@@ -8,8 +7,8 @@ __docformat__ = 'restructuredtext en'
 
 import os
 
-from calibre.utils.date import isoformat, DEFAULT_DATE
-from polyglot.builtins import itervalues, unicode_type
+from calibre.utils.date import DEFAULT_DATE, isoformat
+from polyglot.builtins import itervalues
 
 
 class SchemaUpgrade:
@@ -586,17 +585,16 @@ class SchemaUpgrade:
     def upgrade_version_19(self):
         recipes = self.conn.get('SELECT id,title,script FROM feeds')
         if recipes:
-            from calibre.web.feeds.recipes import custom_recipes, \
-                    custom_recipe_filename
+            from calibre.web.feeds.recipes import custom_recipe_filename, custom_recipes
             bdir = os.path.dirname(custom_recipes.file_path)
             for id_, title, script in recipes:
                 existing = frozenset(map(int, custom_recipes))
                 if id_ in existing:
                     id_ = max(existing) + 1000
-                id_ = unicode_type(id_)
+                id_ = str(id_)
                 fname = custom_recipe_filename(id_, title)
                 custom_recipes[id_] = (title, fname)
-                if isinstance(script, unicode_type):
+                if isinstance(script, str):
                     script = script.encode('utf-8')
                 with open(os.path.join(bdir, fname), 'wb') as f:
                     f.write(script)

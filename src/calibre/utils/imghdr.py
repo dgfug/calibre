@@ -1,12 +1,12 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 # License: GPLv3 Copyright: 2016, Kovid Goyal <kovid at kovidgoyal.net>
 
 
-from struct import unpack, error
 import os
+from struct import error, unpack
+
 from calibre.utils.speedups import ReadOnlyFileBuffer
-from polyglot.builtins import string_or_bytes, unicode_type
+from polyglot.builtins import string_or_bytes
 
 """ Recognize image file formats and sizes based on their first few bytes."""
 
@@ -17,7 +17,7 @@ def what(file, h=None):
     ' Recognize image headers '
     if h is None:
         if isinstance(file, string_or_bytes):
-            with lopen(file, 'rb') as f:
+            with open(file, 'rb') as f:
                 h = f.read(HSIZE)
         else:
             location = file.tell()
@@ -42,8 +42,8 @@ def identify(src):
     recognized. '''
     needs_close = False
 
-    if isinstance(src, unicode_type):
-        stream = lopen(src, 'rb')
+    if isinstance(src, str):
+        stream = open(src, 'rb')
         needs_close = True
     elif isinstance(src, bytes):
         stream = ReadOnlyFileBuffer(src)

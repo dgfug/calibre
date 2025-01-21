@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 # Copyright 2010 Hardcoded Software (http://www.hardcoded.net)
@@ -18,12 +17,12 @@
 # For external volumes this implementation will raise an exception if it can't
 # find or create the user's trash directory.
 
-import os, stat
+import os
 import os.path as op
-from datetime import datetime
 import shutil
+import stat
+from datetime import datetime
 
-from polyglot.builtins import unicode_type
 from polyglot.urllib import quote
 
 FILES_DIR = 'files'
@@ -40,9 +39,9 @@ TOPDIR_FALLBACK = '.Trash-%s'%uid
 
 
 def uniquote(raw):
-    if isinstance(raw, unicode_type):
+    if isinstance(raw, str):
         raw = raw.encode('utf-8')
-    return unicode_type(quote(raw))
+    return str(quote(raw))
 
 
 def is_parent(parent, path):
@@ -85,7 +84,7 @@ def trash_move(src, dst, topdir=None):
     destname = filename
     while op.exists(op.join(filespath, destname)) or op.exists(op.join(infopath, destname + INFO_SUFFIX)):
         counter += 1
-        destname = '%s %s%s' % (base_name, counter, ext)
+        destname = f'{base_name} {counter}{ext}'
 
     check_create(filespath)
     check_create(infopath)
@@ -120,7 +119,7 @@ def find_ext_volume_global_trash(volume_root):
     if not op.isdir(trash_dir) or op.islink(trash_dir) or not (mode & stat.S_ISVTX):
         return None
 
-    trash_dir = op.join(trash_dir, unicode_type(uid))
+    trash_dir = op.join(trash_dir, str(uid))
     try:
         check_create(trash_dir)
     except OSError:

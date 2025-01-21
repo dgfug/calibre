@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:fdm=marker:ai
 
 
 __license__   = 'GPL v3'
@@ -8,7 +7,7 @@ __docformat__ = 'restructuredtext en'
 
 import os
 
-from calibre.ebooks.pdf.render.common import Array, Name, Dictionary, String, UTF16String, current_log
+from calibre.ebooks.pdf.render.common import Array, Dictionary, Name, String, UTF16String, current_log
 from polyglot.builtins import iteritems
 from polyglot.urllib import unquote, urlparse
 
@@ -26,8 +25,8 @@ class Destination(Array):
                 pos['left'] = pos['top'] = 0
                 q -= 1
         if q != pnum:
-            current_log().warn('Could not find page {} for link destination, using page {} instead'.format(pnum, q))
-        super(Destination, self).__init__([
+            current_log().warn(f'Could not find page {pnum} for link destination, using page {q} instead')
+        super().__init__([
             pref, Name('XYZ'), pos['left'], pos['top'], None
         ])
 

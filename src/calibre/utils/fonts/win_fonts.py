@@ -1,19 +1,20 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:fdm=marker:ai
 
 
 __license__   = 'GPL v3'
 __copyright__ = '2012, Kovid Goyal <kovid at kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import os, sys, atexit
+import atexit
+import os
+import sys
 from itertools import product
 
-from calibre import prints, isbytestring
+from calibre import isbytestring, prints
 from calibre.constants import filesystem_encoding
-from calibre.utils.fonts.utils import (is_truetype_font, get_font_names,
-        get_font_characteristics)
-from polyglot.builtins import iteritems, unicode_type
+from calibre.utils.fonts.utils import get_font_characteristics, get_font_names, is_truetype_font
+from calibre.utils.resources import get_path as P
+from polyglot.builtins import iteritems
 
 
 class WinFonts:
@@ -58,7 +59,7 @@ class WinFonts:
         return ft
 
     def fonts_for_family(self, family, normalize=True):
-        family = unicode_type(family)
+        family = str(family)
         ans = {}
         for weight, is_italic in product((self.w.FW_NORMAL, self.w.FW_BOLD), (False, True)):
             if family in self.app_font_families:

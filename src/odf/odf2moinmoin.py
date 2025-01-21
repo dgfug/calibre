@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright (C) 2006-2008 Søren Roug, European Environment Agency
 #
 # This library is free software; you can redistribute it and/or
@@ -21,10 +20,13 @@
 #
 
 
-import zipfile, xml.dom.minidom
-from .namespaces import nsdict
-from .elementtypes import empty_elements, inline_elements
+import xml.dom.minidom
+import zipfile
+
 from polyglot.builtins import unicode_type
+
+from .elementtypes import empty_elements, inline_elements
+from .namespaces import nsdict
 
 IGNORED_TAGS = [
     'draw:a'
@@ -98,7 +100,7 @@ class TextProps:
 
     def __unicode__(self):
 
-        return "[italic=%s, bold=i%s, fixed=%s]" % (unicode_type(self.italic),
+        return "[italic={}, bold=i{}, fixed={}]".format(unicode_type(self.italic),
                                           unicode_type(self.bold),
                                           unicode_type(self.fixed))
     __str__ = __unicode__
@@ -335,7 +337,7 @@ class ODF2MoinMoin:
         if link.strip() == text.strip():
             return "[%s] " % link.strip()
         else:
-            return "[%s %s] " % (link.strip(), text.strip())
+            return f"[{link.strip()} {text.strip()}] "
 
     def text_line_break(self, node):
         return "[[BR]]"
@@ -386,7 +388,7 @@ class ODF2MoinMoin:
                 mark.append(",,")
         revmark = mark[:]
         revmark.reverse()
-        return "%s%s%s" % (''.join(mark), text, ''.join(revmark))
+        return "{}{}{}".format(''.join(mark), text, ''.join(revmark))
 
 # -----------------------------------
     def listToString(self, listElement, indent=0):
@@ -469,7 +471,7 @@ class ODF2MoinMoin:
 
             buffer.append("----")
             for cite, body in self.footnotes:
-                buffer.append("%s: %s" % (cite, body))
+                buffer.append(f"{cite}: {body}")
 
         buffer.append("")
         return self.compressCodeBlocks('\n'.join(buffer))

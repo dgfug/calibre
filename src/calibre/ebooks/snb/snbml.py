@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-
 __license__ = 'GPL 3'
 __copyright__ = '2010, Li Fanxi <lifanxi@freemindworld.com>'
 __docformat__ = 'restructuredtext en'
@@ -13,7 +10,8 @@ import os
 import re
 
 from lxml import etree
-from polyglot.builtins import unicode_type, string_or_bytes
+
+from polyglot.builtins import string_or_bytes
 
 
 def ProcessFileName(fileName):
@@ -85,7 +83,7 @@ class SNBMLizer:
         from calibre.ebooks.oeb.base import XHTML
         from calibre.ebooks.oeb.stylizer import Stylizer
         from calibre.utils.xml_parse import safe_xml_fromstring
-        output = [u'']
+        output = ['']
         stylizer = Stylizer(self.item.data, self.item.href, self.oeb_book, self.opts, self.opts.output_profile)
         content = etree.tostring(self.item.data.find(XHTML('body')), encoding='unicode')
 #        content = self.remove_newlines(content)
@@ -98,7 +96,7 @@ class SNBMLizer:
                 etree.SubElement(snbcHead, "hidetitle").text = "true"
             etree.SubElement(snbcTree, "body")
             trees[subitem] = snbcTree
-        output.append('%s%s\n\n' % (CALIBRE_SNB_BM_TAG, ""))
+        output.append('{}{}\n\n'.format(CALIBRE_SNB_BM_TAG, ""))
         output += self.dump_text(self.subitems, safe_xml_fromstring(content), stylizer)[0]
         output = self.cleanup_text(''.join(output))
 
@@ -130,7 +128,7 @@ class SNBMLizer:
                     else:
                         prefix = ''
                     etree.SubElement(bodyTree, "text").text = \
-                        etree.CDATA(unicode_type(prefix + line))
+                        etree.CDATA(str(prefix + line))
                 if self.opts and self.opts.snb_insert_empty_line:
                     etree.SubElement(bodyTree, "text").text = \
                         etree.CDATA('')
@@ -228,7 +226,7 @@ class SNBMLizer:
         if elem.attrib.get('id') is not None and elem.attrib['id'] in [href for href, title in subitems]:
             if self.curSubItem is not None and self.curSubItem != elem.attrib['id']:
                 self.curSubItem = elem.attrib['id']
-                text.append('\n\n%s%s\n\n' % (CALIBRE_SNB_BM_TAG, self.curSubItem))
+                text.append(f'\n\n{CALIBRE_SNB_BM_TAG}{self.curSubItem}\n\n')
 
         if style['display'] in ('none', 'oeb-page-head', 'oeb-page-foot') \
            or style['visibility'] == 'hidden':
@@ -250,7 +248,7 @@ class SNBMLizer:
                 text.append(' ')
 
         if tag == 'img':
-            text.append('\n\n%s%s\n\n' % (CALIBRE_SNB_IMG_TAG, ProcessFileName(elem.attrib['src'])))
+            text.append('\n\n{}{}\n\n'.format(CALIBRE_SNB_IMG_TAG, ProcessFileName(elem.attrib['src'])))
 
         if tag == 'br':
             text.append('\n\n')

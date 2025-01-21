@@ -1,35 +1,36 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 
 
 __license__ = 'GPL v3'
 __copyright__ = '2013, Kovid Goyal <kovid at kovidgoyal.net>'
 
-import os, traceback, weakref
-from polyglot.builtins import iteritems, zip
+import os
+import traceback
+import weakref
 from collections.abc import MutableMapping
 
 from calibre import force_unicode, isbytestring
 from calibre.constants import preferred_encoding
 from calibre.db import _get_next_series_num_for_list, _get_series_values, get_data_as_dict
-from calibre.db.adding import (
-    find_books_in_directory, import_book_directory_multiple,
-    import_book_directory, recursive_import, add_catalog, add_news)
-from calibre.db.backend import DB, set_global_state as backend_set_global_state
+from calibre.db.adding import add_catalog, add_news, find_books_in_directory, import_book_directory, import_book_directory_multiple, recursive_import
+from calibre.db.backend import DB
+from calibre.db.backend import set_global_state as backend_set_global_state
 from calibre.db.cache import Cache
-from calibre.db.errors import NoSuchFormat
 from calibre.db.categories import CATEGORY_SORTS
+from calibre.db.errors import NoSuchFormat
 from calibre.db.view import View
 from calibre.db.write import clean_identifier, get_series_values
 from calibre.utils.date import utcnow
+from calibre.utils.icu import lower as icu_lower
 from calibre.utils.search_query_parser import set_saved_searches
+from polyglot.builtins import iteritems
 
 
 def cleanup_tags(tags):
     tags = [x.strip().replace(',', ';') for x in tags if x.strip()]
     tags = [x.decode(preferred_encoding, 'replace')
                 if isbytestring(x) else x for x in tags]
-    tags = [u' '.join(x.split()) for x in tags]
+    tags = [' '.join(x.split()) for x in tags]
     ans, seen = [], set()
     for tag in tags:
         if tag.lower() not in seen:
@@ -157,6 +158,7 @@ class ThreadSafePrefs(MutableMapping):
         if isinstance(raw, bytes):
             raw = raw.decode(preferred_encoding)
         import json
+
         from calibre.utils.config import from_json
         return json.loads(raw, object_hook=from_json)
 
@@ -182,14 +184,15 @@ class LibraryDatabase:
 
         self.is_second_db = is_second_db
         if progress_callback is None:
-            progress_callback = lambda x, y:True
+            def progress_callback(x, y):
+                return True
         self.listeners = set()
 
         backend = self.backend = create_backend(library_path, default_prefs=default_prefs,
                     read_only=read_only, restore_all_prefs=restore_all_prefs,
                     progress_callback=progress_callback,
                     load_user_formatter_functions=not is_second_db)
-        cache = self.new_api = Cache(backend)
+        cache = self.new_api = Cache(backend, library_database_instance=self)
         cache.init()
         self.data = View(cache)
         self.id = self.data.index_to_id
@@ -684,8 +687,7 @@ class LibraryDatabase:
         self.new_api.refresh_ondevice()
 
     def tags_older_than(self, tag, delta, must_have_tag=None, must_have_authors=None):
-        for book_id in sorted(self.new_api.tags_older_than(tag, delta=delta, must_have_tag=must_have_tag, must_have_authors=must_have_authors)):
-            yield book_id
+        yield from sorted(self.new_api.tags_older_than(tag, delta=delta, must_have_tag=must_have_tag, must_have_authors=must_have_authors))
 
     def sizeof_format(self, index, fmt, index_is_id=False):
         book_id = index if index_is_id else self.id(index)
@@ -848,8 +850,7 @@ class LibraryDatabase:
 
     # Private interface {{{
     def __iter__(self):
-        for row in self.data.iterall():
-            yield row
+        yield from self.data.iterall()
 
     def _get_next_series_num_for_list(self, series_indices):
         return _get_next_series_num_for_list(series_indices)

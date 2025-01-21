@@ -1,21 +1,20 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
-import re, sys
+import re
+import sys
 from collections import defaultdict
 
-from polyglot.builtins import reraise, unicode_type
+from lxml.html import document_fromstring, fragment_fromstring
+from lxml.html import tostring as htostring
 
-from lxml.html import (fragment_fromstring, document_fromstring,
-        tostring as htostring)
-
+from calibre.ebooks.readability.cleaners import clean_attributes, html_cleaner
 from calibre.ebooks.readability.htmls import build_doc, get_body, get_title, shorten_title
-from calibre.ebooks.readability.cleaners import html_cleaner, clean_attributes
+from polyglot.builtins import reraise
 
 
 def tounicode(tree_or_node, **kwargs):
-    kwargs['encoding'] = unicode_type
+    kwargs['encoding'] = str
     return htostring(tree_or_node, **kwargs)
 
 
@@ -156,7 +155,7 @@ class Document:
                     return cleaned_article
         except Exception as e:
             self.log.exception('error getting summary: ')
-            reraise(Unparsable, Unparsable(unicode_type(e)), sys.exc_info()[2])
+            reraise(Unparsable, Unparsable(str(e)), sys.exc_info()[2])
 
     def get_article(self, candidates, best_candidate):
         # Now that we have the top candidate, look through its siblings for content that might also be related.
@@ -196,7 +195,7 @@ class Document:
         sorted_candidates = sorted(candidates.values(), key=lambda x: x['content_score'], reverse=True)
         for candidate in sorted_candidates[:5]:
             elem = candidate['elem']
-            self.debug("Top 5 : %6.3f %s" % (candidate['content_score'], describe(elem)))
+            self.debug("Top 5 : {:6.3f} {}".format(candidate['content_score'], describe(elem)))
 
         if len(sorted_candidates) == 0:
             return None
@@ -216,7 +215,7 @@ class Document:
     def score_paragraphs(self, ):
         MIN_LEN = self.options.get('min_text_length', self.TEXT_LENGTH_THRESHOLD)
         candidates = {}
-        # self.debug(unicode_type([describe(node) for node in self.tags(self.html, "div")]))
+        # self.debug(str([describe(node) for node in self.tags(self.html, "div")]))
 
         ordered = []
         for elem in self.tags(self.html, "p", "pre", "td"):
@@ -257,7 +256,7 @@ class Document:
             candidate = candidates[elem]
             ld = self.get_link_density(elem)
             score = candidate['content_score']
-            self.debug("Candid: %6.3f %s link density %.3f -> %6.3f" % (score, describe(elem), ld, score*(1-ld)))
+            self.debug(f"Candid: {score:6.3f} {describe(elem)} link density {ld:.3f} -> {score*(1-ld):6.3f}")
             candidate['content_score'] *= (1 - ld)
 
         return candidates
@@ -304,7 +303,7 @@ class Document:
         for elem in self.html.iter():
             if elem in self.keep_elements:
                 continue
-            s = "%s %s" % (elem.get('class', ''), elem.get('id', ''))
+            s = "{} {}".format(elem.get('class', ''), elem.get('id', ''))
             # self.debug(s)
             if REGEXES['unlikelyCandidatesRe'].search(s) and (not REGEXES['okMaybeItsACandidateRe'].search(s)) and elem.tag != 'body':
                 self.debug("Removing unlikely candidate - %s" % describe(elem))
@@ -313,7 +312,7 @@ class Document:
     def transform_misused_divs_into_paragraphs(self):
         for elem in self.tags(self.html, 'div'):
             # transform <div>s that do not contain other block elements into <p>s
-            if not REGEXES['divToPElementsRe'].search(unicode_type(''.join(map(tounicode, list(elem))))):
+            if not REGEXES['divToPElementsRe'].search(str(''.join(map(tounicode, list(elem))))):
                 # self.debug("Altering %s to p" % (describe(elem)))
                 elem.tag = "p"
                 # print("Fixed element "+describe(elem))
@@ -339,13 +338,11 @@ class Document:
 
     def tags(self, node, *tag_names):
         for tag_name in tag_names:
-            for e in node.findall('.//%s' % tag_name):
-                yield e
+            yield from node.findall('.//%s' % tag_name)
 
     def reverse_tags(self, node, *tag_names):
         for tag_name in tag_names:
-            for e in reversed(node.findall('.//%s' % tag_name)):
-                yield e
+            yield from reversed(node.findall('.//%s' % tag_name))
 
     def sanitize(self, node, candidates):
         MIN_LEN = self.options.get('min_text_length', self.TEXT_LENGTH_THRESHOLD)
@@ -410,10 +407,10 @@ class Document:
                     reason = "too short content length %s without a single image" % content_length
                     to_remove = True
                 elif weight < 25 and link_density > 0.2:
-                    reason = "too many links %.3f for its weight %s" % (link_density, weight)
+                    reason = f"too many links {link_density:.3f} for its weight {weight}"
                     to_remove = True
                 elif weight >= 25 and link_density > 0.5:
-                    reason = "too many links %.3f for its weight %s" % (link_density, weight)
+                    reason = f"too many links {link_density:.3f} for its weight {weight}"
                     to_remove = True
                 elif (counts["embed"] == 1 and content_length < 75) or counts["embed"] > 1:
                     reason = "<embed>s with too short content length, or too many <embed>s"
@@ -457,7 +454,7 @@ class Document:
                             siblings.append(sib_content_length)
                             if j == x:
                                 break
-                    # self.debug(unicode_type(siblings))
+                    # self.debug(str(siblings))
                     if siblings and sum(siblings) > 1000 :
                         to_remove = False
                         self.debug("Allowing %s" % describe(el))

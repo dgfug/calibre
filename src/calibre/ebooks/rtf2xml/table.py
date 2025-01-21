@@ -1,4 +1,3 @@
-
 #########################################################################
 #                                                                       #
 #                                                                       #
@@ -11,11 +10,11 @@
 #                                                                       #
 #                                                                       #
 #########################################################################
-import sys, os
+import os
+import sys
 
-from calibre.ebooks.rtf2xml import copy, border_parse
+from calibre.ebooks.rtf2xml import border_parse, copy
 from calibre.ptempfile import better_mktemp
-from polyglot.builtins import unicode_type
 
 from . import open_for_read, open_for_write
 
@@ -122,7 +121,7 @@ class Table:
             Look for  'mi<mk<pard-start', which marks the beginning of a row. Start
             a row and start a cell.
         """
-        # 'cell'               :	('tb', 'cell______', self.default_func),
+        # 'cell'               : ('tb', 'cell______', self.default_func),
         if self.__token_info == 'mi<mk<not-in-tbl' or\
             self.__token_info == 'mi<mk<sect-start' or\
             self.__token_info == 'mi<mk<sect-close' or\
@@ -351,7 +350,7 @@ class Table:
             cell_dict = self.__cell_list[0]
             keys = cell_dict.keys()
             for key in keys:
-                self.__write_obj.write('<%s>%s' % (key, cell_dict[key]))
+                self.__write_obj.write(f'<{key}>{cell_dict[key]}')
             self.__write_obj.write('\n')
             # self.__cell_list.pop()
             self.__cell_list.pop(0)
@@ -375,7 +374,7 @@ class Table:
         self.__write_obj.write('mi<tg<open-att__<row')
         keys = self.__row_dict.keys()
         for key in keys:
-            self.__write_obj.write('<%s>%s' % (key, self.__row_dict[key]))
+            self.__write_obj.write(f'<{key}>{self.__row_dict[key]}')
         self.__write_obj.write('\n')
         self.__cells_in_row = 0
         self.__rows_in_table += 1
@@ -400,13 +399,13 @@ class Table:
             left_position = float(left_position)
         width = new_cell_position - self.__last_cell_position - left_position
         # width = round(width, 2)
-        width = unicode_type('%.2f' % width)
+        width = '%.2f' % width
         self.__last_cell_position = new_cell_position
         widths_exists = self.__row_dict.get('widths')
         if widths_exists:
-            self.__row_dict['widths'] += ', %s' % unicode_type(width)
+            self.__row_dict['widths'] += ', %s' % str(width)
         else:
-            self.__row_dict['widths'] = unicode_type(width)
+            self.__row_dict['widths'] = str(width)
         self.__cell_list[-1]['width'] = width
         self.__cell_list.append({})
         self.__cell_widths.append(width)
@@ -508,7 +507,7 @@ class Table:
             cell_dict = self.__cell_list[-1]
             keys = cell_dict.keys()
             for key in keys:
-                self.__write_obj.write('<%s>%s' % (key, cell_dict[key]))
+                self.__write_obj.write(f'<{key}>{cell_dict[key]}')
             self.__write_obj.write('\n')
         else:
             self.__write_obj.write('mi<tg<empty_____<cell\n')

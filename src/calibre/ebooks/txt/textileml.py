@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-
 __license__ = 'GPL 3'
 __copyright__ = '2011, Leigh Parry <leighparry@blueyonder.co.uk>'
 __docformat__ = 'restructuredtext en'
@@ -9,13 +6,12 @@ __docformat__ = 'restructuredtext en'
 Transform OEB content into Textile formatted plain text
 '''
 import re
-
 from functools import partial
 
+from calibre.ebooks import unit_convert
 from calibre.ebooks.htmlz.oeb2html import OEB2HTML
 from calibre.ebooks.oeb.base import XHTML, XHTML_NS, barename, namespace, rewrite_links
 from calibre.ebooks.oeb.stylizer import Stylizer
-from calibre.ebooks import unit_convert
 from calibre.ebooks.textile.unsmarten import unsmarten
 from polyglot.builtins import string_or_bytes
 
@@ -113,16 +109,16 @@ class TextileMLizer(OEB2HTML):
 
         # reduce blank lines
         text = re.sub(r'\n{3}', r'\n\np. \n\n', text)
-        text = re.sub(u'%\n(p[<>=]{1,2}\\.|p\\.)', r'%\n\n\1', text)
+        text = re.sub('%\n(p[<>=]{1,2}\\.|p\\.)', r'%\n\n\1', text)
         # Check span following blank para
         text = re.sub(r'\n+ +%', r' %', text)
-        text = re.sub(u'p[<>=]{1,2}\\.\n\n?', r'', text)
+        text = re.sub('p[<>=]{1,2}\\.\n\n?', r'', text)
         # blank paragraph
         text = re.sub(r'\n(p.*\.)\n', r'\n\1 \n\n', text)
         # blank paragraph
-        text = re.sub(u'\n\xa0', r'\np. ', text)
+        text = re.sub('\n\xa0', r'\np. ', text)
         # blank paragraph
-        text = re.sub(u'\np[<>=]{1,2}?\\. \xa0', r'\np. ', text)
+        text = re.sub('\np[<>=]{1,2}?\\. \xa0', r'\np. ', text)
         text = re.sub(r'(^|\n)(p.*\. ?\n)(p.*\.)', r'\1\3', text)
         text = re.sub(r'\n(p\. \n)(p.*\.|h.*\.)', r'\n\2', text)
         # sort out spaces in tables
@@ -177,11 +173,19 @@ class TextileMLizer(OEB2HTML):
         txt = ''
         left_padding_pts = 0
         left_margin_pts = 0
+
+        def add(x, y):
+            if isinstance(x, str):
+                x = 0
+            if isinstance(y, str):
+                y = 0
+            return x +y
+
         if 'padding-left' in style.cssdict() and style['padding-left'] != 'auto':
             left_padding_pts = unit_convert(style['padding-left'], style.width, style.fontSize, stylizer.profile.dpi)
         if 'margin-left' in style.cssdict() and style['margin-left'] != 'auto':
             left_margin_pts = unit_convert(style['margin-left'], style.width, style.fontSize, stylizer.profile.dpi)
-        left = left_margin_pts + left_padding_pts
+        left = add(left_margin_pts, left_padding_pts)
         emleft = min(int(round(left / stylizer.profile.fbase)), self.MAX_EM)
         if emleft >= 1:
             txt += '(' * emleft
@@ -191,7 +195,7 @@ class TextileMLizer(OEB2HTML):
             right_padding_pts = unit_convert(style['padding-right'], style.width, style.fontSize, stylizer.profile.dpi)
         if 'margin-right' in style.cssdict() and style['margin-right'] != 'auto':
             right_margin_pts = unit_convert(style['margin-right'], style.width, style.fontSize, stylizer.profile.dpi)
-        right = right_margin_pts + right_padding_pts
+        right = add(right_margin_pts, right_padding_pts)
         emright = min(int(round(right / stylizer.profile.fbase)), self.MAX_EM)
         if emright >= 1:
             txt += ')' * emright
@@ -203,7 +207,7 @@ class TextileMLizer(OEB2HTML):
         if 'id' in attribs:
             txt = '(#'+attribs['id']+ ')'
             self.our_ids.append('#'+attribs['id'])
-            self.id_no_text = u'\xa0'
+            self.id_no_text = '\xa0'
         return txt
 
     def build_block(self, tag, style, attribs, stylizer):
@@ -253,7 +257,7 @@ class TextileMLizer(OEB2HTML):
         if 'margin-top' in style.cssdict() and style['margin-top'] != 'auto':
             ems = min(int(round(float(style.marginTop) / style.fontSize) - 1), self.MAX_EM)
             if ems >= 1:
-                text.append(u'\n\n\xa0' * ems)
+                text.append('\n\n\xa0' * ems)
 
         if tag in ('h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'div'):
             if tag == 'div':
@@ -449,7 +453,7 @@ class TextileMLizer(OEB2HTML):
             if not self.in_pre:
                 txt = self.prepare_string_for_textile(self.remove_newlines(txt))
             text.append(txt)
-            self.id_no_text = u''
+            self.id_no_text = ''
 
         # Recurse down into tags within the tag we are in.
         for item in elem:
@@ -471,7 +475,7 @@ class TextileMLizer(OEB2HTML):
                     self.in_a_link = False
                     t = ''
                 text.append(self.id_no_text)
-                self.id_no_text = u''
+                self.id_no_text = ''
                 if t in ('*]', '*'):
                     self.style_bold = False
                 elif t in ('_]', '_'):
@@ -490,7 +494,7 @@ class TextileMLizer(OEB2HTML):
         if 'margin-bottom' in style.cssdict() and style['margin-bottom'] != 'auto':
             ems = min(int(round((float(style.marginBottom) / style.fontSize) - 1)), self.MAX_EM)
             if ems >= 1:
-                text.append(u'\n\n\xa0' * ems)
+                text.append('\n\n\xa0' * ems)
 
         # Add the text that is outside of the tag.
         if hasattr(elem, 'tail') and elem.tail:

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 __license__   = 'GPL v3'
@@ -17,7 +16,8 @@ from math import ceil
 from multiprocessing import Pipe
 from threading import Thread
 
-from calibre import detect_ncpus as cpu_count, force_unicode
+from calibre import detect_ncpus as cpu_count
+from calibre import force_unicode
 from calibre.constants import DEBUG
 from calibre.ptempfile import base_dir
 from calibre.utils.ipc import eintr_retry_call
@@ -27,7 +27,6 @@ from calibre.utils.serialize import pickle_loads
 from polyglot.binary import as_hex_unicode
 from polyglot.builtins import environ_item, string_or_bytes
 from polyglot.queue import Empty, Queue
-
 
 server_counter = count()
 _name_counter = count()
@@ -129,7 +128,7 @@ class Server(Thread):
         if isinstance(cw, string_or_bytes):
             raise CriticalError('Failed to launch worker process:\n'+force_unicode(cw))
         if DEBUG:
-            print('Worker Launch took: {:.2f} seconds'.format(time.monotonic() - start))
+            print(f'Worker Launch took: {time.monotonic() - start:.2f} seconds')
         return cw
 
     def do_launch(self, gui, redirect_output, rfile, job_name=None):
@@ -194,7 +193,7 @@ class Server(Thread):
                     job.returncode = worker.returncode
                 elif os.path.exists(worker.rfile):
                     try:
-                        with lopen(worker.rfile, 'rb') as f:
+                        with open(worker.rfile, 'rb') as f:
                             job.result = pickle_loads(f.read())
                         os.remove(worker.rfile)
                     except:

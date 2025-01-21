@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 
 
 __license__ = 'GPL v3'
@@ -12,7 +11,7 @@ from lxml.etree import tostring
 
 from calibre.ebooks.metadata.toc import TOC
 from calibre.ebooks.oeb.polish.toc import elem_to_toc_text
-from polyglot.builtins import iteritems, range
+from polyglot.builtins import iteritems
 
 
 def from_headings(body, log, namespace, num_levels=3):
@@ -124,7 +123,7 @@ def from_toc(docx, link_map, styles, object_map, log, namespace):
                 if txt and href and p is not None:
                     ps = styles.resolve_paragraph(p)
                     try:
-                        ml = int(ps.margin_left[:-2])
+                        ml = float(ps.margin_left[:-2])
                     except (TypeError, ValueError, AttributeError):
                         ml = 0
                     if ps.text_align in {'center', 'right'}:

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 # License: GPL v3 Copyright: 2019, Kovid Goyal <kovid at kovidgoyal.net>
 
 
@@ -48,7 +47,7 @@ def split_lines(chunk, length=80):
 def save_annots_to_epub(path, serialized_annots):
     try:
         zf = open(path, 'r+b')
-    except IOError:
+    except OSError:
         return
     with zf:
         serialized_annots = EPUB_FILE_TYPE_MAGIC + b'\n'.join(split_lines(as_base64_bytes(serialized_annots)))
@@ -115,14 +114,14 @@ def find_tests():
 
     def bm(title, bmid, year=20, first_cfi_number=1):
         return {
-            'title': title, 'id': bmid, 'timestamp': '20{}-06-29T03:21:48.895323+00:00'.format(year),
-            'pos_type': 'epubcfi', 'pos': 'epubcfi(/{}/4/8)'.format(first_cfi_number)
+            'title': title, 'id': bmid, 'timestamp': f'20{year}-06-29T03:21:48.895323+00:00',
+            'pos_type': 'epubcfi', 'pos': f'epubcfi(/{first_cfi_number}/4/8)'
         }
 
     def hl(uuid, hlid, year=20, first_cfi_number=1):
         return {
-            'uuid': uuid, 'id': hlid, 'timestamp': '20{}-06-29T03:21:48.895323+00:00'.format(year),
-            'start_cfi': 'epubcfi(/{}/4/8)'.format(first_cfi_number)
+            'uuid': uuid, 'id': hlid, 'timestamp': f'20{year}-06-29T03:21:48.895323+00:00',
+            'start_cfi': f'epubcfi(/{first_cfi_number}/4/8)'
         }
 
     class AnnotationsTest(unittest.TestCase):

@@ -8,14 +8,14 @@ __copyright__ = '2011, Alex Stanev <alex@stanev.org>'
 __docformat__ = 'restructuredtext en'
 
 from contextlib import closing
+
 try:
-    from urllib.parse import quote
     from urllib.error import HTTPError
+    from urllib.parse import quote
 except ImportError:
-    from urllib2 import quote, HTTPError
+    from urllib2 import HTTPError, quote
 
 from lxml import html
-
 from qt.core import QUrl
 
 from calibre import browser, url_slash_cleaner
@@ -81,7 +81,7 @@ class ChitankaStore(BasicStoreConfig, StorePlugin):
             d = WebStoreDialog(self.gui, url, parent, detail_url)
             d.setWindowTitle(self.name)
             d.set_tags(self.config.get('tags', ''))
-            d.exec_()
+            d.exec()
 
     def search(self, query, max_results=10, timeout=60):
         if isinstance(query, bytes):

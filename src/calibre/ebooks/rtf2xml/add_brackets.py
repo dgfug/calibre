@@ -1,4 +1,3 @@
-
 #########################################################################
 #                                                                       #
 #                                                                       #
@@ -12,11 +11,13 @@
 #                                                                       #
 #                                                                       #
 #########################################################################
-import sys, os
+import os
+import sys
 
-from calibre.ebooks.rtf2xml import copy, check_brackets
+from calibre.ebooks.rtf2xml import check_brackets, copy
 from calibre.ptempfile import better_mktemp
 from polyglot.builtins import iteritems
+
 from . import open_for_read, open_for_write
 
 
@@ -133,7 +134,7 @@ class AddBrackets:
     def __after_control_word_func(self, line):
         """
         After a cw either add next allowed cw to temporary list or
-        change groupe and write it.
+        change group and write it.
         If the token leading to an exit is an open bracket go to
         ignore otherwise goto in body
         """
@@ -163,7 +164,7 @@ class AddBrackets:
                 )
             self.__open_bracket = False
 
-        inline_string = ''.join(['%s<nu<%s\n' % (k, v)
+        inline_string = ''.join([f'{k}<nu<{v}\n'
                 for k, v in iteritems(self.__inline)
                     if v != 'false'])
         if inline_string:

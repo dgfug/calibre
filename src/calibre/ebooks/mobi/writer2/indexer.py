@@ -1,19 +1,18 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 __license__   = 'GPL v3'
 __copyright__ = '2011, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import numbers
-from struct import pack
 import io
+import numbers
 from collections import OrderedDict, defaultdict
+from struct import pack
 
-from calibre.ebooks.mobi.utils import (encint, encode_number_as_hex,
-        encode_tbs, align_block, RECORD_SIZE, CNCX as CNCX_)
-from polyglot.builtins import filter, iteritems, itervalues, map, range
+from calibre.ebooks.mobi.utils import CNCX as CNCX_
+from calibre.ebooks.mobi.utils import RECORD_SIZE, align_block, encint, encode_number_as_hex, encode_tbs
+from polyglot.builtins import iteritems, itervalues
 
 
 class CNCX(CNCX_):  # {{{
@@ -65,8 +64,8 @@ class TAGX:  # {{{
         '''
         TAGX block for the Primary index header of a periodical
         '''
-        list(map(self.add_tag, (1, 2, 3, 4, 5, 21, 22, 23, 0, 69, 70, 71, 72,
-            73, 0)))
+        for i in (1, 2, 3, 4, 5, 21, 22, 23, 0, 69, 70, 71, 72,73, 0):
+            self.add_tag(i)
         return self.header(2) + bytes(self.byts)
 
     @property
@@ -74,7 +73,8 @@ class TAGX:  # {{{
         '''
         TAGX block for the secondary index header of a periodical
         '''
-        list(map(self.add_tag, (11, 0)))
+        for i in (11, 0):
+            self.add_tag(i)
         return self.header(1) + bytes(self.byts)
 
     @property
@@ -82,7 +82,8 @@ class TAGX:  # {{{
         '''
         TAGX block for the primary index header of a flat book
         '''
-        list(map(self.add_tag, (1, 2, 3, 4, 0)))
+        for i in (1, 2, 3, 4, 0):
+            self.add_tag(i)
         return self.header(1) + bytes(self.byts)
 
 
@@ -144,8 +145,7 @@ class IndexEntry:
 
     @property
     def tag_nums(self):
-        for i in range(1, 5):
-            yield i
+        yield from range(1, 5)
         for attr in ('class_offset', 'parent_index', 'first_child_index',
                 'last_child_index'):
             if getattr(self, attr) is not None:

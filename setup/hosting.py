@@ -1,15 +1,19 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 __license__ = 'GPL v3'
 __copyright__ = '2011, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import os, time, sys, shutil, json, mimetypes
-from pprint import pprint
+import json
+import mimetypes
+import os
+import shutil
+import sys
+import time
 from argparse import ArgumentParser, FileType
-from subprocess import check_call
 from collections import OrderedDict
+from pprint import pprint
+from subprocess import check_call
 
 
 class ReadFileWithProgressReporting:  # {{{
@@ -150,7 +154,7 @@ class GitHub(Base):  # {{{
         existing_assets = self.existing_assets(release['id'])
         for path, desc in self.files.items():
             self.info('')
-            url = self.API + 'repos/%s/%s/releases/assets/{}' % (
+            url = self.API + 'repos/{}/{}/releases/assets/{{}}'.format(
                 self.username, self.reponame
             )
             fname = os.path.basename(path)
@@ -206,7 +210,7 @@ class GitHub(Base):  # {{{
 
     def do_upload(self, url, path, desc, fname):
         mime_type = mimetypes.guess_type(fname)[0] or 'application/octet-stream'
-        self.info('Uploading to GitHub: %s (%s)' % (fname, mime_type))
+        self.info(f'Uploading to GitHub: {fname} ({mime_type})')
         with ReadFileWithProgressReporting(path) as f:
             return self.requests.post(
                 url,
@@ -229,7 +233,7 @@ class GitHub(Base):  # {{{
         return error_code == 'already_exists'
 
     def existing_assets(self, release_id):
-        url = self.API + 'repos/%s/%s/releases/%s/assets' % (
+        url = self.API + 'repos/{}/{}/releases/{}/assets'.format(
             self.username, self.reponame, release_id
         )
         r = self.requests.get(url)
@@ -238,7 +242,7 @@ class GitHub(Base):  # {{{
         return {asset['name']: asset['id'] for asset in r.json()}
 
     def releases(self):
-        url = self.API + 'repos/%s/%s/releases' % (self.username, self.reponame)
+        url = self.API + f'repos/{self.username}/{self.reponame}/releases'
         r = self.requests.get(url)
         if r.status_code != 200:
             self.fail(r, 'Failed to list releases')
@@ -250,7 +254,7 @@ class GitHub(Base):  # {{{
             # Check for existing release
             if release['tag_name'] == self.current_tag_name:
                 return release
-        url = self.API + 'repos/%s/%s/releases' % (self.username, self.reponame)
+        url = self.API + f'repos/{self.username}/{self.reponame}/releases'
         r = self.requests.post(
             url,
             data=json.dumps({
@@ -275,7 +279,7 @@ def generate_index():  # {{{
     releases = set()
     for x in os.listdir('.'):
         if os.path.isdir(x) and '.' in x:
-            releases.add(tuple((int(y) for y in x.split('.'))))
+            releases.add(tuple(int(y) for y in x.split('.')))
     rmap = OrderedDict()
     for rnum in sorted(releases, reverse=True):
         series = rnum[:2] if rnum[0] == 0 else rnum[:1]
@@ -301,10 +305,10 @@ def generate_index():  # {{{
         body.append(
             '<li><a href="{0}.html" title="Releases in the {0}.x series">{0}.x</a>\xa0\xa0\xa0<span style="font-size:smaller">[{1} releases]</span></li>'
             .format(  # noqa
-                '.'.join(map(type(''), series)), len(rmap[series])
+                '.'.join(map(str, series)), len(rmap[series])
             )
         )
-    body = '<ul>{0}</ul>'.format(' '.join(body))
+    body = '<ul>{}</ul>'.format(' '.join(body))
     index = template.format(
         title='Previous calibre releases',
         style=style,
@@ -315,13 +319,13 @@ def generate_index():  # {{{
         f.write(index.encode('utf-8'))
 
     for series, releases in rmap.items():
-        sname = '.'.join(map(type(''), series))
+        sname = '.'.join(map(str, series))
         body = [
             '<li><a href="{0}/" title="Release {0}">{0}</a></li>'.format(
-                '.'.join(map(type(''), r))
+                '.'.join(map(str, r))
             ) for r in releases
         ]
-        body = '<ul class="release-list">{0}</ul>'.format(' '.join(body))
+        body = '<ul class="release-list">{}</ul>'.format(' '.join(body))
         index = template.format(
             title='Previous calibre releases (%s.x)' % sname,
             style=style,
@@ -332,21 +336,20 @@ def generate_index():  # {{{
             f.write(index.encode('utf-8'))
 
         for r in releases:
-            rname = '.'.join(map(type(''), r))
+            rname = '.'.join(map(str, r))
             os.chdir(rname)
             try:
                 body = []
                 files = os.listdir('.')
                 windows = [x for x in files if x.endswith('.msi')]
                 if windows:
+                    def wdesc(x):
+                        return 'Windows ' + ('64-bit' if '-64bit-' in x else '32-bit') + ' Installer'
                     windows = [
-                        '<li><a href="{0}" title="{1}">{1}</a></li>'.format(
-                            x, 'Windows 64-bit Installer'
-                            if '64bit' in x else 'Windows 32-bit Installer'
-                        ) for x in windows
+                        '<li><a href="{0}" title="{1}">{1}</a></li>'.format(x, wdesc(x)) for x in windows
                     ]
                     body.append(
-                        '<dt>Windows</dt><dd><ul>{0}</ul></dd>'.format(
+                        '<dt>Windows</dt><dd><ul>{}</ul></dd>'.format(
                             ' '.join(windows)
                         )
                     )
@@ -366,14 +369,17 @@ def generate_index():  # {{{
                     x for x in files if x.endswith('.txz') or x.endswith('tar.bz2')
                 ]
                 if linux:
+                    def ldesc(x):
+                        if 'i686' in x:
+                            return 'Linux Intel 32-bit binary'
+                        if 'arm64' in x:
+                            return 'Linux ARM 64-bit binary'
+                        return 'Linux Intel 64-bit binary'
                     linux = [
-                        '<li><a href="{0}" title="{1}">{1}</a></li>'.format(
-                            x, 'Linux 64-bit binary'
-                            if 'x86_64' in x else 'Linux 32-bit binary'
-                        ) for x in linux
+                        '<li><a href="{0}" title="{1}">{1}</a></li>'.format(x, ldesc(x)) for x in linux
                     ]
                     body.append(
-                        '<dt>Linux</dt><dd><ul>{0}</ul></dd>'.format(
+                        '<dt>Linux</dt><dd><ul>{}</ul></dd>'.format(
                             ' '.join(linux)
                         )
                     )
@@ -384,7 +390,7 @@ def generate_index():  # {{{
                         .format(source[0], 'Source code (all platforms)')
                     )
 
-                body = '<dl>{0}</dl>'.format(''.join(body))
+                body = '<dl>{}</dl>'.format(''.join(body))
                 index = template.format(
                     title='calibre release (%s)' % rname,
                     style=style,

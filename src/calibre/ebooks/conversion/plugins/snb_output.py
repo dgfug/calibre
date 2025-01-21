@@ -1,16 +1,12 @@
-# -*- coding: utf-8 -*-
-
-
 __license__ = 'GPL 3'
 __copyright__ = '2010, Li Fanxi <lifanxi@freemindworld.com>'
 __docformat__ = 'restructuredtext en'
 
 import os
 
-from calibre.customize.conversion import OutputFormatPlugin, OptionRecommendation
-from calibre.ptempfile import TemporaryDirectory
 from calibre.constants import __appname__, __version__
-from polyglot.builtins import unicode_type
+from calibre.customize.conversion import OptionRecommendation, OutputFormatPlugin
+from calibre.ptempfile import TemporaryDirectory
 
 
 class SNBOutput(OutputFormatPlugin):
@@ -51,8 +47,9 @@ class SNBOutput(OutputFormatPlugin):
 
     def convert(self, oeb_book, output_path, input_plugin, opts, log):
         from lxml import etree
+
         from calibre.ebooks.snb.snbfile import SNBFile
-        from calibre.ebooks.snb.snbml import SNBMLizer, ProcessFileName
+        from calibre.ebooks.snb.snbml import ProcessFileName, SNBMLizer
 
         self.opts = opts
         from calibre.ebooks.oeb.transforms.rasterize import SVGRasterizer, Unavailable
@@ -75,20 +72,20 @@ class SNBOutput(OutputFormatPlugin):
             # Process Meta data
             meta = oeb_book.metadata
             if meta.title:
-                title = unicode_type(meta.title[0])
+                title = str(meta.title[0])
             else:
                 title = ''
-            authors = [unicode_type(x) for x in meta.creator if x.role == 'aut']
+            authors = [str(x) for x in meta.creator if x.role == 'aut']
             if meta.publisher:
-                publishers = unicode_type(meta.publisher[0])
+                publishers = str(meta.publisher[0])
             else:
                 publishers = ''
             if meta.language:
-                lang = unicode_type(meta.language[0]).upper()
+                lang = str(meta.language[0]).upper()
             else:
                 lang = ''
             if meta.description:
-                abstract = unicode_type(meta.description[0])
+                abstract = str(meta.description[0])
             else:
                 abstract = ''
 
@@ -225,7 +222,7 @@ class SNBOutput(OutputFormatPlugin):
             snbFile.Output(output_path)
 
     def HandleImage(self, imageData, imagePath):
-        from calibre.utils.img import image_from_data, resize_image, image_to_data
+        from calibre.utils.img import image_from_data, image_to_data, resize_image
         img = image_from_data(imageData)
         x, y = img.width(), img.height()
         if self.opts:
@@ -245,15 +242,15 @@ class SNBOutput(OutputFormatPlugin):
             #     img = img.rotate(90)
             #     x,y = y,x
             img = resize_image(img, x // scale, y // scale)
-        with lopen(imagePath, 'wb') as f:
+        with open(imagePath, 'wb') as f:
             f.write(image_to_data(img, fmt=imagePath.rpartition('.')[-1]))
 
 
 if __name__ == '__main__':
-    from calibre.ebooks.oeb.reader import OEBReader
-    from calibre.ebooks.oeb.base import OEBBook
-    from calibre.ebooks.conversion.preprocess import HTMLPreProcessor
     from calibre.customize.profiles import HanlinV3Output
+    from calibre.ebooks.conversion.preprocess import HTMLPreProcessor
+    from calibre.ebooks.oeb.base import OEBBook
+    from calibre.ebooks.oeb.reader import OEBReader
 
     class OptionValues:
         pass

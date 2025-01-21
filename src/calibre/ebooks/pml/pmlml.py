@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-
 __license__ = 'GPL 3'
 __copyright__ = '2009, John Schember <john@nachtimwald.com>'
 __docformat__ = 'restructuredtext en'
@@ -14,9 +11,9 @@ import re
 from lxml import etree
 
 from calibre.ebooks.pdb.ereader import image_name
-from calibre.utils.xml_parse import safe_xml_fromstring
 from calibre.ebooks.pml import unipmlcode
-from polyglot.builtins import unicode_type, string_or_bytes
+from calibre.utils.xml_parse import safe_xml_fromstring
+from polyglot.builtins import string_or_bytes
 
 TAG_MAP = {
     'b'       : 'B',
@@ -113,8 +110,8 @@ class PMLMLizer:
         return output
 
     def get_cover_page(self):
-        from calibre.ebooks.oeb.stylizer import Stylizer
         from calibre.ebooks.oeb.base import XHTML
+        from calibre.ebooks.oeb.stylizer import Stylizer
 
         output = ''
         if 'cover' in self.oeb_book.guide:
@@ -131,8 +128,8 @@ class PMLMLizer:
         return output
 
     def get_text(self):
-        from calibre.ebooks.oeb.stylizer import Stylizer
         from calibre.ebooks.oeb.base import XHTML
+        from calibre.ebooks.oeb.stylizer import Stylizer
 
         text = ['']
         for item in self.oeb_book.spine:
@@ -149,7 +146,7 @@ class PMLMLizer:
         return self.get_anchor(page, '')
 
     def get_anchor_id(self, href, aid):
-        aid = '%s#%s' % (href, aid)
+        aid = f'{href}#{aid}'
         if aid not in self.link_hrefs.keys():
             self.link_hrefs[aid] = 'calibre_link-%s' % len(self.link_hrefs.keys())
         aid = self.link_hrefs[aid]
@@ -167,7 +164,7 @@ class PMLMLizer:
 
     def prepare_string_for_pml(self, text):
         text = self.remove_newlines(text)
-        # Replace \ with \\ so \ in the text is not interperted as
+        # Replace \ with \\ so \ in the text is not interpreted as
         # a pml code.
         text = text.replace('\\', '\\\\')
         # Replace sequences of \\c \\c with pml sequences denoting
@@ -177,7 +174,7 @@ class PMLMLizer:
 
     def prepare_text(self, text):
         # Replace empty paragraphs with \c pml codes used to denote empty lines.
-        text = re.sub(unicode_type(r'(?<=</p>)\s*<p[^>]*>[\xc2\xa0\s]*</p>'), r'\\c\n\\c', text)
+        text = re.sub(r'(?<=</p>)\s*<p[^>]*>[\xc2\xa0\s]*</p>', r'\\c\n\\c', text)
         return text
 
     def clean_text(self, text):
@@ -288,7 +285,7 @@ class PMLMLizer:
                     toc_title, toc_depth = self.toc[toc_page].get(toc_x, (None, 0))
                     if toc_title:
                         toc_depth = max(min(toc_depth, 4), 0)
-                        text.append(r'\C%s="%s"' % (toc_depth, toc_title))
+                        text.append(fr'\C{toc_depth}="{toc_title}"')
 
         # Process style information that needs holds a single tag.
         # Commented out because every page in an OEB book starts with this style.

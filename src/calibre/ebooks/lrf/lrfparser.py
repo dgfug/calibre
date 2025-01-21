@@ -1,19 +1,21 @@
-
-
 __license__   = 'GPL v3'
 __copyright__ = '2008, Kovid Goyal <kovid at kovidgoyal.net>'
 ''''''
 
-import sys, array, os, re, codecs, logging
+import array
+import codecs
+import logging
+import os
+import re
+import sys
 from itertools import chain
 
 from calibre import setup_cli_handlers
+from calibre.ebooks.lrf.meta import LRFMetaFile
+from calibre.ebooks.lrf.objects import BookAttr, Font, PageTree, StyleObject, Text, TOCObject, get_object, ruby_tags
 from calibre.utils.config import OptionParser
 from calibre.utils.filenames import ascii_filename
-from calibre.ebooks.lrf.meta import LRFMetaFile
-from calibre.ebooks.lrf.objects import get_object, PageTree, StyleObject, \
-                                         Font, Text, TOCObject, BookAttr, ruby_tags
-from polyglot.builtins import unicode_type, itervalues
+from polyglot.builtins import itervalues
 
 
 class LRFDocument(LRFMetaFile):
@@ -76,8 +78,7 @@ class LRFDocument(LRFMetaFile):
                     self.ruby_tags[attr] = getattr(obj, attr)
 
     def __iter__(self):
-        for pt in self.page_trees:
-            yield pt
+        yield from self.page_trees
 
     def write_files(self):
         for obj in chain(itervalues(self.image_map), itervalues(self.font_map)):
@@ -118,7 +119,7 @@ class LRFDocument(LRFMetaFile):
                 pages += '<PageTree objid="%d">\n'%(page_tree.id,)
                 close = '</PageTree>\n'
             for page in page_tree:
-                pages += unicode_type(page)
+                pages += str(page)
             pages += close
         traversed_objects = [int(i) for i in re.findall(r'objid="(\w+)"', pages)] + [pt_id]
 
@@ -131,9 +132,9 @@ class LRFDocument(LRFMetaFile):
             if isinstance(obj, (Font, Text, TOCObject)):
                 continue
             if isinstance(obj, StyleObject):
-                styles += unicode_type(obj)
+                styles += str(obj)
             else:
-                objects += unicode_type(obj)
+                objects += str(obj)
         styles += '</Style>\n'
         objects += '</Objects>\n'
         if write_files:

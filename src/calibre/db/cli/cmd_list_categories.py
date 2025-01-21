@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 # License: GPLv3 Copyright: 2017, Kovid Goyal <kovid at kovidgoyal.net>
 
 
@@ -8,7 +7,7 @@ import sys
 from textwrap import TextWrapper
 
 from calibre import prints
-from polyglot.builtins import as_bytes, map, unicode_type
+from polyglot.builtins import as_bytes
 
 readonly = True
 version = 0  # change this if you change signature of implementation()
@@ -72,13 +71,13 @@ information is the equivalent of what is shown in the Tag browser.
 
 
 def do_list(fields, data, opts):
-    from calibre.utils.terminal import geometry, ColoredStream
+    from calibre.utils.terminal import ColoredStream, geometry
 
     separator = ' '
     widths = list(map(lambda x: 0, fields))
     for i in data:
         for j, field in enumerate(fields):
-            widths[j] = max(widths[j], max(len(field), len(unicode_type(i[field]))))
+            widths[j] = max(widths[j], max(len(field), len(str(i[field]))))
 
     screen_width = geometry()[0]
     if not screen_width:
@@ -109,7 +108,7 @@ def do_list(fields, data, opts):
 
     for record in data:
         text = [
-            wrappers[i].wrap(unicode_type(record[field]))
+            wrappers[i].wrap(str(record[field]))
             for i, field in enumerate(fields)
         ]
         lines = max(map(len, text))
@@ -167,11 +166,11 @@ def main(opts, args, dbctx):
             is_rating = category_metadata(category)['datatype'] == 'rating'
             for tag in category_data[category]:
                 if is_rating:
-                    tag.name = unicode_type(len(tag.name))
+                    tag.name = str(len(tag.name))
                 data.append({
                     'category': category,
                     'tag_name': tag.name,
-                    'count': unicode_type(tag.count),
+                    'count': str(tag.count),
                     'rating': fmtr(tag.avg_rating),
                 })
     else:
@@ -179,7 +178,7 @@ def main(opts, args, dbctx):
             data.append({
                 'category': category,
                 'tag_name': _('CATEGORY ITEMS'),
-                'count': unicode_type(len(category_data[category])),
+                'count': str(len(category_data[category])),
                 'rating': ''
             })
 

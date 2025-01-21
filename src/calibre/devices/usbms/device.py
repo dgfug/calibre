@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-
 __license__   = 'GPL v3'
 __copyright__ = '2009, John Schember <john at nachtimwald.com> ' \
                 '2009, Kovid Goyal <kovid@kovidgoyal.net>'
@@ -22,12 +19,12 @@ from collections import namedtuple
 from itertools import repeat
 
 from calibre import prints
-from calibre.constants import DEBUG, isfreebsd, islinux, ismacos, iswindows
+from calibre.constants import is_debugging, isfreebsd, islinux, ismacos, iswindows
 from calibre.devices.errors import DeviceError
 from calibre.devices.interface import DevicePlugin
 from calibre.devices.usbms.deviceconfig import DeviceConfig
 from calibre.utils.filenames import ascii_filename as sanitize
-from polyglot.builtins import iteritems, map, string_or_bytes
+from polyglot.builtins import iteritems, string_or_bytes
 
 if ismacos:
     osx_sanitize_name_pat = re.compile(r'[.-]')
@@ -206,7 +203,7 @@ class Device(DeviceConfig, DevicePlugin):
         '''
         Called to disambiguate main memory and storage card for devices that
         do not distinguish between them on the basis of `WINDOWS_CARD_NAME`.
-        For e.g.: The EB600
+        For example: The EB600
         '''
         return drives
 
@@ -232,14 +229,14 @@ class Device(DeviceConfig, DevicePlugin):
                 usbdevice.vendor_id, usbdevice.product_id, usbdevice.bcd,
                 data.get('manufacturer') or '', data.get('product') or '', data.get('serial_number') or '')
             if debug:
-                prints('USB Info for device: {}'.format(dev))
+                prints(f'USB Info for device: {dev}')
         return self.can_handle(dev, debug=debug)
 
     def open_windows(self):
         from calibre.devices.scanner import drive_is_ok
         from calibre.devices.winusb import get_drive_letters_for_device
         usbdev = self.device_being_opened
-        debug = DEBUG or getattr(self, 'do_device_debug', False)
+        debug = is_debugging() or getattr(self, 'do_device_debug', False)
         try:
             dlmap = get_drive_letters_for_device(usbdev, debug=debug)
         except Exception:
@@ -251,7 +248,7 @@ class Device(DeviceConfig, DevicePlugin):
 
         if debug:
             from pprint import pformat
-            prints('Drive letters for {}'.format(usbdev))
+            prints(f'Drive letters for {usbdev}')
             prints(pformat(dlmap))
 
         filtered = set()
@@ -264,7 +261,7 @@ class Device(DeviceConfig, DevicePlugin):
             elif self.windows_filter_pnp_id(pnp_id):
                 filtered.add(dl)
                 if debug:
-                    prints('Ignoring the drive %s because of a PNP filter on %s' % (dl, pnp_id))
+                    prints(f'Ignoring the drive {dl} because of a PNP filter on {pnp_id}')
             elif not drive_is_ok(dl, debug=debug):
                 filtered.add(dl)
                 if debug:
@@ -296,7 +293,7 @@ class Device(DeviceConfig, DevicePlugin):
             try:
                 return subprocess.Popen(cmd,
                                     stdout=subprocess.PIPE).communicate()[0]
-            except IOError:  # Probably an interrupted system call
+            except OSError:  # Probably an interrupted system call
                 if i == 2:
                     raise
             time.sleep(2)
@@ -310,7 +307,7 @@ class Device(DeviceConfig, DevicePlugin):
             try:
                 return subprocess.Popen('mount',
                                     stdout=subprocess.PIPE).communicate()[0]
-            except IOError:  # Probably an interrupted system call
+            except OSError:  # Probably an interrupted system call
                 if i == 2:
                     raise
             time.sleep(2)
@@ -342,7 +339,7 @@ class Device(DeviceConfig, DevicePlugin):
         if not matches:
             from pprint import pformat
             raise DeviceError(
-                'Could not detect BSD names for %s. Try rebooting.\nOutput from osx_get_usb_drives():\n%s' % (self.name, pformat(drives)))
+                f'Could not detect BSD names for {self.name}. Try rebooting.\nOutput from osx_get_usb_drives():\n{pformat(drives)}')
 
         pat = re.compile(r'(?P<m>\d+)([a-z]+(?P<p>\d+)){0,1}')
 
@@ -396,8 +393,18 @@ class Device(DeviceConfig, DevicePlugin):
         bsd_drives = self.osx_bsd_names()
         drives = self.osx_sort_names(bsd_drives.copy())
         mount_map = get_mounted_filesystems()
+        # macOS 13 Ventura uses a weird scheme for mounted FAT devices of the
+        # form fat://basename_of_bsd_name/basename_of_mountpoint
+        # see https://www.mobileread.com/forums/showthread.php?t=347294
+        for dev_node in tuple(mount_map):
+            if ':' in dev_node and '//' in dev_node:
+                val = mount_map[dev_node]
+                dev_node = dev_node.split('/')[-2]
+                dev_node = f'/dev/{dev_node}'
+                if dev_node not in mount_map:
+                    mount_map[dev_node] = val
         drives = {k: mount_map.get(v) for k, v in iteritems(drives)}
-        if DEBUG:
+        if is_debugging():
             print()
             from pprint import pprint
             pprint({'bsd_drives': bsd_drives, 'mount_map': mount_map, 'drives': drives})
@@ -440,8 +447,7 @@ class Device(DeviceConfig, DevicePlugin):
                 isfile = os.path.isfile(p)
                 yield p, isfile
                 if not isfile:
-                    for y, q in walk(p):
-                        yield y, q
+                    yield from walk(p)
 
         def raw2num(raw):
             raw = raw.lower()
@@ -505,8 +511,8 @@ class Device(DeviceConfig, DevicePlugin):
                             ok[node] = False
                     except:
                         ok[node] = False
-                    if DEBUG and not ok[node]:
-                        print('\nIgnoring the node: %s as could not read size from: %s' % (node, sz))
+                    if is_debugging() and not ok[node]:
+                        print(f'\nIgnoring the node: {node} as could not read size from: {sz}')
 
                     devnodes.append(node)
 
@@ -531,7 +537,8 @@ class Device(DeviceConfig, DevicePlugin):
             if not os.access(sz, os.R_OK):
                 continue
             try:
-                sz = int(open(sz, 'rb').read().decode('utf-8'))
+                with open(sz, 'rb') as szf:
+                    sz = int(szf.read().decode('utf-8'))
             except:
                 continue
             if sz > 0:
@@ -571,7 +578,7 @@ class Device(DeviceConfig, DevicePlugin):
             'the device has already been ejected, or your '
             'kernel is exporting a deprecated version of SYSFS.')
                     %self.__class__.__name__)
-        if DEBUG:
+        if is_debugging():
             print('\nFound device nodes:', main, carda, cardb)
 
         self._linux_mount_map = {}
@@ -608,7 +615,7 @@ class Device(DeviceConfig, DevicePlugin):
             path = os.path.join(mp, 'calibre_readonly_test')
             ro = True
             try:
-                with lopen(path, 'wb'):
+                with open(path, 'wb'):
                     ro = False
             except:
                 pass
@@ -617,7 +624,7 @@ class Device(DeviceConfig, DevicePlugin):
                     os.remove(path)
                 except:
                     pass
-            if DEBUG and ro:
+            if is_debugging() and ro:
                 print('\nThe mountpoint', mp, 'is readonly, ignoring it')
             return ro
 
@@ -666,7 +673,7 @@ class Device(DeviceConfig, DevicePlugin):
         hal = get_hal()
         vols = hal.get_volumes(d)
         if verbose:
-            print("FBSD:	", vols)
+            print("FBSD:\t", vols)
 
         ok, mv = hal.mount_volumes(vols)
         if not ok:

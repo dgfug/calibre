@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-
 __license__ = 'GPL 3'
 __copyright__ = '''
 2011, John Schember <john@nachtimwald.com>,
@@ -11,8 +8,8 @@ __docformat__ = 'restructuredtext en'
 from contextlib import closing
 
 from calibre import browser
-from calibre.utils.xml_parse import safe_xml_fromstring
 from calibre.utils.opensearch.url import URL
+from calibre.utils.xml_parse import safe_xml_fromstring
 
 
 class Description:

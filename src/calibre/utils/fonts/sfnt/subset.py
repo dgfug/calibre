@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:fdm=marker:ai
 
 
 __license__   = 'GPL v3'
@@ -8,13 +7,14 @@ __docformat__ = 'restructuredtext en'
 
 import traceback
 from collections import OrderedDict
-from operator import itemgetter
 from functools import partial
+from operator import itemgetter
 
-from calibre.utils.icu import safe_chr, ord_string
 from calibre.utils.fonts.sfnt.container import Sfnt
-from calibre.utils.fonts.sfnt.errors import UnsupportedFont, NoGlyphs
-from polyglot.builtins import unicode_type, range, iteritems, itervalues, map
+from calibre.utils.fonts.sfnt.errors import NoGlyphs, UnsupportedFont
+from calibre.utils.icu import ord_string, safe_chr
+from calibre.utils.resources import get_path as P
+from polyglot.builtins import iteritems, itervalues
 
 # TrueType outlines {{{
 
@@ -109,7 +109,7 @@ def pdf_subset(sfnt, glyphs):
 
 
 def safe_ord(x):
-    return ord_string(unicode_type(x))[0]
+    return ord_string(str(x))[0]
 
 
 def subset(raw, individual_chars, ranges=(), warnings=None):
@@ -198,6 +198,7 @@ def subset(raw, individual_chars, ranges=(), warnings=None):
 
 def option_parser():
     import textwrap
+
     from calibre.utils.config import OptionParser
     parser = OptionParser(usage=textwrap.dedent('''\
             %prog [options] input_font_file output_font_file characters_to_keep
@@ -240,7 +241,9 @@ def print_stats(old_stats, new_stats):
 
 
 def main(args):
-    import sys, time
+    import sys
+    import time
+
     from calibre import prints
     parser = option_parser()
     opts, args = parser.parse_args(args)
@@ -266,14 +269,15 @@ def main(args):
 
     for c in chars:
         if '-' in c:
-            parts = [x.strip() for x in c.split('-')]
+            parts = tuple(x.strip() for x in c.split('-'))
             if len(parts) != 2:
                 prints('Invalid range:', c, file=sys.stderr)
                 raise SystemExit(1)
             if opts.codes:
                 parts = tuple(map(conv_code, parts))
-            tuple(map(not_single, parts))
-            ranges.add(tuple(parts))
+            for i in parts:
+                not_single(i)
+            ranges.add(parts)
         else:
             if opts.codes:
                 c = conv_code(c)
@@ -308,8 +312,9 @@ if __name__ == '__main__':
 
 
 def test_mem():
-    from calibre.utils.mem import memory
     import gc
+
+    from calibre.utils.mem import memory
     gc.collect()
     start_mem = memory()
     raw = P('fonts/liberation/LiberationSerif-Regular.ttf', data=True)
@@ -324,7 +329,7 @@ def test_mem():
 
 def test():
     raw = P('fonts/liberation/LiberationSerif-Regular.ttf', data=True)
-    sf, old_stats, new_stats = subset(raw, set(('a', 'b', 'c')), ())
+    sf, old_stats, new_stats = subset(raw, {'a', 'b', 'c'}, ())
     if len(sf) > 0.3 * len(raw):
         raise Exception('Subsetting failed')
 
@@ -343,7 +348,7 @@ def all():
             total += 1
             try:
                 w = []
-                sf, old_stats, new_stats = subset(raw, set(('a', 'b', 'c')),
+                sf, old_stats, new_stats = subset(raw, {'a', 'b', 'c'},
                         (), w)
                 if w:
                     warnings[font['full_name'] + ' (%s)'%font['path']] = w
@@ -351,12 +356,12 @@ def all():
                 print('No glyphs!')
                 continue
             except UnsupportedFont as e:
-                unsupported.append((font['full_name'], font['path'], unicode_type(e)))
+                unsupported.append((font['full_name'], font['path'], str(e)))
                 print('Unsupported!')
                 continue
             except Exception as e:
                 print('Failed!')
-                failed.append((font['full_name'], font['path'], unicode_type(e)))
+                failed.append((font['full_name'], font['path'], str(e)))
             else:
                 averages.append(sum(itervalues(new_stats))/sum(itervalues(old_stats)) * 100)
                 print('Reduced to:', '%.1f'%averages[-1] , '%')

@@ -1,22 +1,22 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 __license__ = 'GPL v3'
 __copyright__ = '2012, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import datetime, os, time
+import datetime
+import os
+import time
 from collections import namedtuple
 
 from calibre import strftime
 from calibre.customize import CatalogPlugin
-from calibre.customize.conversion import OptionRecommendation, DummyReporter
+from calibre.customize.conversion import DummyReporter, OptionRecommendation
 from calibre.library import current_library_name
 from calibre.library.catalogs import AuthorSortMismatchException, EmptyCatalogException
 from calibre.ptempfile import PersistentTemporaryFile
-from calibre.utils.localization import calibre_langcode_to_name, canonicalize_lang, get_lang
-from polyglot.builtins import unicode_type
+from calibre.utils.localization import _, calibre_langcode_to_name, canonicalize_lang, get_lang
 
 Option = namedtuple('Option', 'option, default, dest, action, help')
 
@@ -34,7 +34,7 @@ class EPUB_MOBI(CatalogPlugin):
     file_types = {'azw3', 'epub', 'mobi'}
 
     THUMB_SMALLEST = "1.0"
-    THUMB_LARGEST = "2.0"
+    THUMB_LARGEST = "3.0"
 
     cli_options = [Option('--catalog-title',  # {{{
                           default='My Books',
@@ -192,16 +192,16 @@ class EPUB_MOBI(CatalogPlugin):
 
     def run(self, path_to_output, opts, db, notification=DummyReporter()):
         from calibre.library.catalogs.epub_mobi_builder import CatalogBuilder
-        from calibre.utils.logging import default_log as log
         from calibre.utils.config import JSONConfig
+        from calibre.utils.logging import default_log as log
 
         # If preset specified from the cli, insert stored options from JSON file
         if hasattr(opts, 'preset') and opts.preset:
             available_presets = JSONConfig("catalog_presets")
             if opts.preset not in available_presets:
                 if available_presets:
-                    print(_('Error: Preset "%s" not found.' % opts.preset))
-                    print(_('Stored presets: %s' % ', '.join([p for p in sorted(available_presets.keys())])))
+                    print(_('Error: Preset "{}" not found.').format(opts.preset))
+                    print(_('Stored presets: {}').format(', '.join([p for p in sorted(available_presets.keys())])))
                 else:
                     print(_('Error: No stored presets.'))
                 return 1
@@ -236,8 +236,8 @@ class EPUB_MOBI(CatalogPlugin):
         opts.fmt = self.fmt = path_to_output.rpartition('.')[2]
 
         # Add local options
-        opts.creator = '%s, %s %s, %s' % (strftime('%A'), strftime('%B'), strftime('%d').lstrip('0'), strftime('%Y'))
-        opts.creator_sort_as = '%s %s' % ('calibre', strftime('%Y-%m-%d'))
+        opts.creator = '{}, {} {}, {}'.format(strftime('%A'), strftime('%B'), strftime('%d').lstrip('0'), strftime('%Y'))
+        opts.creator_sort_as = '{} {}'.format('calibre', strftime('%Y-%m-%d'))
         opts.connected_kindle = False
 
         # Finalize output_profile
@@ -344,14 +344,14 @@ class EPUB_MOBI(CatalogPlugin):
         # Limit thumb_width to 1.0" - 2.0"
         try:
             if float(opts.thumb_width) < float(self.THUMB_SMALLEST):
-                log.warning("coercing thumb_width from '%s' to '%s'" % (opts.thumb_width, self.THUMB_SMALLEST))
+                log.warning(f"coercing thumb_width from '{opts.thumb_width}' to '{self.THUMB_SMALLEST}'")
                 opts.thumb_width = self.THUMB_SMALLEST
             if float(opts.thumb_width) > float(self.THUMB_LARGEST):
-                log.warning("coercing thumb_width from '%s' to '%s'" % (opts.thumb_width, self.THUMB_LARGEST))
+                log.warning(f"coercing thumb_width from '{opts.thumb_width}' to '{self.THUMB_LARGEST}'")
                 opts.thumb_width = self.THUMB_LARGEST
             opts.thumb_width = "%.2f" % float(opts.thumb_width)
-        except:
-            log.error("coercing thumb_width from '%s' to '%s'" % (opts.thumb_width, self.THUMB_SMALLEST))
+        except Exception:
+            log.error(f"coercing thumb_width from '{opts.thumb_width}' to '{self.THUMB_SMALLEST}'")
             opts.thumb_width = "1.0"
 
         # eval prefix_rules if passed from command line
@@ -387,7 +387,7 @@ class EPUB_MOBI(CatalogPlugin):
                        'output_profile', 'prefix_rules', 'preset', 'read_book_marker',
                        'search_text', 'sort_by', 'sort_descriptions_by_author', 'sync',
                        'thumb_width', 'use_existing_cover', 'wishlist_tag']:
-                build_log.append("  %s: %s" % (key, repr(opts_dict[key])))
+                build_log.append(f"  {key}: {repr(opts_dict[key])}")
         if opts.verbose:
             log('\n'.join(line for line in build_log))
 
@@ -398,7 +398,7 @@ class EPUB_MOBI(CatalogPlugin):
 
         if opts.verbose:
             log.info(" Begin catalog source generation (%s)" %
-                     unicode_type(datetime.timedelta(seconds=int(time.time() - opts.start_time))))
+                     str(datetime.timedelta(seconds=int(time.time() - opts.start_time))))
 
         # Launch the Catalog builder
         catalog = CatalogBuilder(db, opts, self, report_progress=notification)
@@ -407,7 +407,7 @@ class EPUB_MOBI(CatalogPlugin):
             catalog.build_sources()
             if opts.verbose:
                 log.info(" Completed catalog source generation (%s)\n"  %
-                         unicode_type(datetime.timedelta(seconds=int(time.time() - opts.start_time))))
+                         str(datetime.timedelta(seconds=int(time.time() - opts.start_time))))
         except (AuthorSortMismatchException, EmptyCatalogException) as e:
             log.error(" *** Terminated catalog generation: %s ***" % e)
         except:
@@ -448,7 +448,7 @@ class EPUB_MOBI(CatalogPlugin):
             cpath = None
             existing_cover = False
             try:
-                search_text = 'title:"%s" author:%s' % (
+                search_text = 'title:"{}" author:{}'.format(
                         opts.catalog_title.replace('"', '\\"'), 'calibre')
                 matches = db.search(search_text, return_matches=True, sort_results=False)
                 if matches:
@@ -500,7 +500,7 @@ class EPUB_MOBI(CatalogPlugin):
 
             if opts.verbose:
                 log.info(" Catalog creation complete (%s)\n" %
-                     unicode_type(datetime.timedelta(seconds=int(time.time() - opts.start_time))))
+                     str(datetime.timedelta(seconds=int(time.time() - opts.start_time))))
 
         # returns to gui2.actions.catalog:catalog_generated()
         return catalog.error

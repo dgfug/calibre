@@ -1,12 +1,13 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 # License: GPLv3 Copyright: 2015, Kovid Goyal <kovid at kovidgoyal.net>, John Howell <jhowell@acm.org>'
 
 
 # Based on work of John Howell reversing the KFX format
 # https://www.mobileread.com/forums/showpost.php?p=3176029&postcount=89
 
-import struct, sys, re
+import re
+import struct
+import sys
 from collections import defaultdict
 
 from calibre.ebooks.metadata.book.base import Metadata
@@ -14,9 +15,8 @@ from calibre.ebooks.mobi.utils import decint
 from calibre.utils.cleantext import clean_xml_chars
 from calibre.utils.config_base import tweaks
 from calibre.utils.date import parse_only_date
-from calibre.utils.localization import canonicalize_lang
 from calibre.utils.imghdr import identify
-from polyglot.builtins import unicode_type, filter, map
+from calibre.utils.localization import canonicalize_lang
 from polyglot.binary import as_base64_bytes, from_base64_bytes
 
 
@@ -364,4 +364,4 @@ if __name__ == '__main__':
     from calibre import prints
     with open(sys.argv[-1], 'rb') as f:
         mi = read_metadata_kfx(f)
-        prints(unicode_type(mi))
+        prints(str(mi))

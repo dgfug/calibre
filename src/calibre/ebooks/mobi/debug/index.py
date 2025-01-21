@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 __license__   = 'GPL v3'
@@ -7,14 +6,12 @@ __copyright__ = '2012, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
 import struct
-
 from collections import OrderedDict, namedtuple
 
 from calibre.ebooks.mobi.reader.headers import NULL_INDEX
-from calibre.ebooks.mobi.reader.index import (CNCX, parse_indx_header,
-        parse_tagx_section, parse_index_record, INDEX_HEADER_FIELDS)
-from calibre.ebooks.mobi.reader.ncx import (tag_fieldname_map, default_entry)
-from polyglot.builtins import iteritems, range
+from calibre.ebooks.mobi.reader.index import CNCX, INDEX_HEADER_FIELDS, get_tag_section_start, parse_index_record, parse_indx_header, parse_tagx_section
+from calibre.ebooks.mobi.reader.ncx import default_entry, tag_fieldname_map
+from polyglot.builtins import iteritems
 
 File = namedtuple('File',
     'file_number name divtbl_count start_position length')
@@ -71,7 +68,7 @@ def read_index(sections, idx, codec):
         cncx_records = [x.raw for x in sections[off:off+indx_header['ncncx']]]
         cncx = CNCX(cncx_records, codec)
 
-    tag_section_start = indx_header['tagx']
+    tag_section_start = get_tag_section_start(data, indx_header)
     control_byte_count, tags = parse_tagx_section(data[tag_section_start:])
 
     read_variable_len_data(data, indx_header)
@@ -135,7 +132,7 @@ class Index:
 class SKELIndex(Index):
 
     def __init__(self, skelidx, records, codec):
-        super(SKELIndex, self).__init__(skelidx, records, codec)
+        super().__init__(skelidx, records, codec)
         self.records = []
 
         if self.table is not None:
@@ -156,7 +153,7 @@ class SKELIndex(Index):
 class SECTIndex(Index):
 
     def __init__(self, sectidx, records, codec):
-        super(SECTIndex, self).__init__(sectidx, records, codec)
+        super().__init__(sectidx, records, codec)
         self.records = []
 
         if self.table is not None:
@@ -181,7 +178,7 @@ class SECTIndex(Index):
 class GuideIndex(Index):
 
     def __init__(self, guideidx, records, codec):
-        super(GuideIndex, self).__init__(guideidx, records, codec)
+        super().__init__(guideidx, records, codec)
         self.records = []
 
         if self.table is not None:
@@ -203,7 +200,7 @@ class GuideIndex(Index):
 class NCXIndex(Index):
 
     def __init__(self, ncxidx, records, codec):
-        super(NCXIndex, self).__init__(ncxidx, records, codec)
+        super().__init__(ncxidx, records, codec)
         self.records = []
 
         if self.table is not None:

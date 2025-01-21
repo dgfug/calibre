@@ -1,11 +1,10 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 
 
 __license__ = 'GPL v3'
 __copyright__ = '2015, Kovid Goyal <kovid at kovidgoyal.net>'
 
-from polyglot import http_client
+import http.client as http_client
 
 
 class JobQueueFull(Exception):
@@ -51,6 +50,24 @@ class HTTPBadRequest(HTTPSimpleResponse):
         HTTPSimpleResponse.__init__(self, http_client.BAD_REQUEST, message, close_connection)
 
 
+class HTTPFailedDependency(HTTPSimpleResponse):
+
+    def __init__(self, message, close_connection=False):
+        HTTPSimpleResponse.__init__(self, http_client.FAILED_DEPENDENCY, message, close_connection)
+
+
+class HTTPPreconditionRequired(HTTPSimpleResponse):
+
+    def __init__(self, message, close_connection=False):
+        HTTPSimpleResponse.__init__(self, http_client.PRECONDITION_REQUIRED, message, close_connection)
+
+
+class HTTPUnprocessableEntity(HTTPSimpleResponse):
+
+    def __init__(self, message, close_connection=False):
+        HTTPSimpleResponse.__init__(self, http_client.UNPROCESSABLE_ENTITY, message, close_connection)
+
+
 class HTTPForbidden(HTTPSimpleResponse):
 
     def __init__(self, http_message='', close_connection=True, log=None):
@@ -66,4 +83,4 @@ class HTTPInternalServerError(HTTPSimpleResponse):
 class BookNotFound(HTTPNotFound):
 
     def __init__(self, book_id, db):
-        HTTPNotFound.__init__(self, 'No book with id: {} in library: {}'.format(book_id, db.server_library_id))
+        HTTPNotFound.__init__(self, f'No book with id: {book_id} in library: {db.server_library_id}')

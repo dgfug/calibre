@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 # License: GPLv3 Copyright: 2017, Kovid Goyal <kovid at kovidgoyal.net>
 
 
@@ -44,8 +43,7 @@ def option_parser(get_parser, args):  # {{{
 
     # Entry point
     parser = get_parser(
-        _(
-            '''\
+        _('''\
 %prog catalog /path/to/destination.(csv|epub|mobi|xml...) [options]
 
 Export a catalog in format specified by path/to/destination extension.
@@ -53,8 +51,7 @@ Options control how entries are displayed in the generated catalog output.
 Note that different catalog formats support different sets of options. To
 see the different options, specify the name of the output file and then the
 {} option.
-'''.format('--help')
-        )
+''').format('--help')
     )
 
     # Add options common to all catalog plugins

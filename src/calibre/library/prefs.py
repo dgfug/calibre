@@ -1,17 +1,17 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 __license__   = 'GPL v3'
 __copyright__ = '2010, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import json, os
+import json
+import os
 
-from calibre.constants import preferred_encoding
-from calibre.utils.config import to_json, from_json
 from calibre import prints
-from polyglot.builtins import iteritems, unicode_type
+from calibre.constants import preferred_encoding
+from calibre.utils.config import from_json, to_json
+from polyglot.builtins import iteritems
 
 
 class DBPrefs(dict):
@@ -30,7 +30,7 @@ class DBPrefs(dict):
             dict.__setitem__(self, key, val)
 
     def raw_to_object(self, raw):
-        if not isinstance(raw, unicode_type):
+        if not isinstance(raw, str):
             raw = raw.decode(preferred_encoding)
         return json.loads(raw, object_hook=from_json)
 

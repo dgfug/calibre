@@ -1,18 +1,18 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 __license__   = 'GPL v3'
 __copyright__ = '2009, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import os, shutil, re
+import os
+import re
+import shutil
 
-from calibre.customize.conversion import (OutputFormatPlugin,
-        OptionRecommendation)
-from calibre.ptempfile import TemporaryDirectory
 from calibre import CurrentDir
-from polyglot.builtins import unicode_type, filter, map, zip, range, as_bytes
+from calibre.customize.conversion import OptionRecommendation, OutputFormatPlugin
+from calibre.ptempfile import TemporaryDirectory
+from polyglot.builtins import as_bytes
 
 block_level_tags = (
       'address',
@@ -116,7 +116,7 @@ class EPUBOutput(OutputFormatPlugin):
         ),
 
         OptionRecommendation(name='toc_title', recommended_value=None,
-            help=_('Title for any generated in-line table of contents.')
+            help=_('Title for any generated inline table of contents.')
         ),
 
         OptionRecommendation(name='epub_version', recommended_value='2', choices=ui_data['versions'],
@@ -124,6 +124,17 @@ class EPUBOutput(OutputFormatPlugin):
                 ' most widely compatible, only use EPUB 3 if you know you'
                 ' actually need it.')
         ),
+
+        OptionRecommendation(name='epub_max_image_size', recommended_value='none',
+            help=_('The maximum image size (width x height). A value of {0} means use the screen size from the output'
+                   ' profile. A value of {1} means no maximum size is specified. For example, a value of {2}'
+                   ' will cause all images to be resized so that their width is no more than {3} pixels and'
+                   ' their height is no more than {4} pixels. Note that this only affects the size of the actual'
+                   ' image files themselves. Any given image may be rendered at a different size depending on the styling'
+                   ' applied to it in the document.'
+                   ).format('none', 'profile', '100x200', 100, 200)
+        ),
+
 
         }
 
@@ -147,7 +158,7 @@ class EPUBOutput(OutputFormatPlugin):
 
     def upshift_markup(self):  # {{{
         'Upgrade markup to comply with XHTML 1.1 where possible'
-        from calibre.ebooks.oeb.base import XPath, XML
+        from calibre.ebooks.oeb.base import XML, XPath
         for x in self.oeb.spine:
             root = x.data
             if (not root.get(XML('lang'))) and (root.get('lang')):
@@ -194,11 +205,13 @@ class EPUBOutput(OutputFormatPlugin):
             from calibre.ebooks.oeb.transforms.filenames import UniqueFilenames
             UniqueFilenames()(oeb, opts)
 
+        self.oeb.set_page_progression_direction_if_needed()
         self.workaround_ade_quirks()
         self.workaround_webkit_quirks()
         self.upshift_markup()
+
         from calibre.ebooks.oeb.transforms.rescale import RescaleImages
-        RescaleImages(check_colorspaces=True)(oeb, opts)
+        RescaleImages(check_colorspaces=True)(oeb, opts, max_size=self.opts.epub_max_image_size)
 
         from calibre.ebooks.oeb.transforms.split import Split
         split = Split(not self.opts.dont_split_on_page_breaks,
@@ -225,15 +238,15 @@ class EPUBOutput(OutputFormatPlugin):
         identifiers = oeb.metadata['identifier']
         uuid = None
         for x in identifiers:
-            if x.get(OPF('scheme'), None).lower() == 'uuid' or unicode_type(x).startswith('urn:uuid:'):
-                uuid = unicode_type(x).split(':')[-1]
+            if x.get(OPF('scheme'), None).lower() == 'uuid' or str(x).startswith('urn:uuid:'):
+                uuid = str(x).split(':')[-1]
                 break
         encrypted_fonts = getattr(input_plugin, 'encrypted_fonts', [])
 
         if uuid is None:
             self.log.warn('No UUID identifier found')
             from uuid import uuid4
-            uuid = unicode_type(uuid4())
+            uuid = str(uuid4())
             oeb.metadata.add('identifier', uuid, scheme='uuid', id=uuid)
 
         if encrypted_fonts and not uuid.startswith('urn:uuid:'):
@@ -241,7 +254,7 @@ class EPUBOutput(OutputFormatPlugin):
             # for some absurd reason, or it will throw a hissy fit and refuse
             # to use the obfuscated fonts.
             for x in identifiers:
-                if unicode_type(x) == uuid:
+                if str(x) == uuid:
                     x.content = 'urn:uuid:'+uuid
 
         with TemporaryDirectory('_epub_output') as tdir:
@@ -258,11 +271,11 @@ class EPUBOutput(OutputFormatPlugin):
             opf = [x for x in os.listdir(tdir) if x.endswith('.opf')][0]
             self.condense_ncx([os.path.join(tdir, x) for x in os.listdir(tdir)
                     if x.endswith('.ncx')][0])
-            if self.opts.epub_version == '3':
-                self.upgrade_to_epub3(tdir, opf)
             encryption = None
             if encrypted_fonts:
                 encryption = self.encrypt_fonts(encrypted_fonts, tdir, uuid)
+            if self.opts.epub_version == '3':
+                encryption = self.upgrade_to_epub3(tdir, opf, encryption)
 
             from calibre.ebooks.epub import initialize_container
             with initialize_container(output_path, os.path.basename(opf),
@@ -285,30 +298,37 @@ class EPUBOutput(OutputFormatPlugin):
                     zf.extractall(path=opts.extract_to)
                 self.log.info('EPUB extracted to', opts.extract_to)
 
-    def upgrade_to_epub3(self, tdir, opf):
+    def upgrade_to_epub3(self, tdir, opf, encryption=None):
         self.log.info('Upgrading to EPUB 3...')
         from calibre.ebooks.epub import simple_container_xml
         from calibre.ebooks.oeb.polish.cover import fix_conversion_titlepage_links_in_nav
         try:
             os.mkdir(os.path.join(tdir, 'META-INF'))
-        except EnvironmentError:
+        except OSError:
             pass
         with open(os.path.join(tdir, 'META-INF', 'container.xml'), 'wb') as f:
             f.write(simple_container_xml(os.path.basename(opf)).encode('utf-8'))
+        if encryption is not None:
+            with open(os.path.join(tdir, 'META-INF', 'encryption.xml'), 'wb') as ef:
+                ef.write(as_bytes(encryption))
         from calibre.ebooks.oeb.polish.container import EpubContainer
         container = EpubContainer(tdir, self.log)
         from calibre.ebooks.oeb.polish.upgrade import epub_2_to_3
         existing_nav = getattr(self.opts, 'epub3_nav_parsed', None)
         nav_href = getattr(self.opts, 'epub3_nav_href', None)
-        previous_nav = (nav_href, existing_nav) if existing_nav and nav_href else None
+        previous_nav = (nav_href, existing_nav) if existing_nav is not None and nav_href else None
         epub_2_to_3(container, self.log.info, previous_nav=previous_nav)
         fix_conversion_titlepage_links_in_nav(container)
         container.commit()
         os.remove(f.name)
+        if encryption is not None:
+            encryption = open(ef.name, 'rb').read()
+            os.remove(ef.name)
         try:
             os.rmdir(os.path.join(tdir, 'META-INF'))
-        except EnvironmentError:
+        except OSError:
             pass
+        return encryption
 
     def encrypt_fonts(self, uris, tdir, uuid):  # {{{
         from polyglot.binary import from_hex_bytes
@@ -328,7 +348,7 @@ class EPUBOutput(OutputFormatPlugin):
                     uris.pop(uri)
                     continue
                 self.log.debug('Encrypting font:', uri)
-                with lopen(path, 'r+b') as f:
+                with open(path, 'r+b') as f:
                     data = f.read(1024)
                     if len(data) >= 1024:
                         data = bytearray(data)
@@ -336,7 +356,7 @@ class EPUBOutput(OutputFormatPlugin):
                         f.write(bytes(bytearray(data[i] ^ key[i%16] for i in range(1024))))
                     else:
                         self.log.warn('Font', path, 'is invalid, ignoring')
-                if not isinstance(uri, unicode_type):
+                if not isinstance(uri, str):
                     uri = uri.decode('utf-8')
                 fonts.append('''
                 <enc:EncryptedData>
@@ -376,10 +396,9 @@ class EPUBOutput(OutputFormatPlugin):
         Perform various markup transforms to get the output to render correctly
         in the quirky ADE.
         '''
-        from calibre.ebooks.oeb.base import XPath, XHTML, barename, urlunquote
+        from calibre.ebooks.oeb.base import XHTML, XPath, barename, urlunquote
 
         stylesheet = self.oeb.manifest.main_stylesheet
-
         # ADE cries big wet tears when it encounters an invalid fragment
         # identifier in the NCX toc.
         frag_pat = re.compile(r'[-A-Za-z0-9_:.]+$')
@@ -517,7 +536,7 @@ class EPUBOutput(OutputFormatPlugin):
         '''
         Perform toc link transforms to alleviate slow loading.
         '''
-        from calibre.ebooks.oeb.base import urldefrag, XPath
+        from calibre.ebooks.oeb.base import XPath, urldefrag
         from calibre.ebooks.oeb.polish.toc import item_at_top
 
         def frag_is_at_top(root, frag):

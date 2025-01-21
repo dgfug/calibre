@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 __license__   = 'GPL v3'
@@ -8,15 +7,30 @@ __docformat__ = 'restructuredtext en'
 
 import textwrap
 
-from qt.core import (QWidget, pyqtSignal, QCheckBox, QAbstractSpinBox, QApplication,
-    QLineEdit, QComboBox, Qt, QIcon, QDialog, QVBoxLayout,
-    QDialogButtonBox)
+from qt.core import (
+    QAbstractSpinBox,
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QEvent,
+    QIcon,
+    QLineEdit,
+    QListView,
+    QListWidget,
+    Qt,
+    QTableWidget,
+    QVBoxLayout,
+    QWidget,
+    pyqtSignal,
+)
 
 from calibre.customize.ui import preferences_plugins
-from calibre.utils.config import ConfigProxy
 from calibre.gui2.complete2 import EditWithComplete
 from calibre.gui2.widgets import HistoryLineEdit
-from polyglot.builtins import unicode_type, string_or_bytes
+from calibre.utils.config import ConfigProxy
+from polyglot.builtins import string_or_bytes
 
 
 class AbortCommit(Exception):
@@ -92,6 +106,27 @@ class ConfigWidgetInterface:
         '''
         pass
 
+    def initial_tab_changed(self):
+        '''
+        Called if the initially displayed tab is changed before the widget is shown, but after it is initialized.
+        '''
+        pass
+
+    def do_on_child_tabs(self, method, *args):
+        r = False
+        for t in self.child_tabs:
+            r = r | bool(getattr(t, method)(*args))
+        return r
+
+def set_help_tips(gui_obj, tt):
+    if tt:
+        if not str(gui_obj.whatsThis()):
+            gui_obj.setWhatsThis(tt)
+        if not str(gui_obj.statusTip()):
+            gui_obj.setStatusTip(tt)
+        tt = '\n'.join(textwrap.wrap(tt, 70))
+        gui_obj.setToolTip(tt)
+
 
 class Setting:
 
@@ -128,18 +163,12 @@ class Setting:
             raise ValueError('Unknown data type %s' % self.gui_obj.__class__)
 
         if isinstance(self.config_obj, ConfigProxy) and \
-                not unicode_type(self.gui_obj.toolTip()):
+                not str(self.gui_obj.toolTip()):
             h = self.config_obj.help(self.name)
             if h:
                 self.gui_obj.setToolTip(h)
-        tt = unicode_type(self.gui_obj.toolTip())
-        if tt:
-            if not unicode_type(self.gui_obj.whatsThis()):
-                self.gui_obj.setWhatsThis(tt)
-            if not unicode_type(self.gui_obj.statusTip()):
-                self.gui_obj.setStatusTip(tt)
-            tt = '\n'.join(textwrap.wrap(tt, 70))
-            self.gui_obj.setToolTip(tt)
+        tt = str(self.gui_obj.toolTip())
+        set_help_tips(self.gui_obj, tt)
 
     def changed(self, *args):
         self.widget.changed_signal.emit()
@@ -204,17 +233,17 @@ class Setting:
         elif self.datatype == 'number':
             val = self.gui_obj.value()
         elif self.datatype == 'string':
-            val = unicode_type(self.gui_obj.text()).strip()
+            val = str(self.gui_obj.text()).strip()
             if self.empty_string_is_None and not val:
                 val = None
         elif self.datatype == 'choice':
             if isinstance(self.gui_obj, EditWithComplete):
-                val = unicode_type(self.gui_obj.text())
+                val = str(self.gui_obj.text())
             else:
                 idx = self.gui_obj.currentIndex()
                 if idx < 0:
                     idx = 0
-                val = unicode_type(self.gui_obj.itemData(idx) or '')
+                val = str(self.gui_obj.itemData(idx) or '')
         return val
 
 
@@ -227,7 +256,7 @@ class CommaSeparatedList(Setting):
         self.gui_obj.setText(x)
 
     def get_gui_val(self):
-        val = unicode_type(self.gui_obj.text()).strip()
+        val = str(self.gui_obj.text()).strip()
         ans = []
         if val:
             ans = [x.strip() for x in val.split(',')]
@@ -261,6 +290,10 @@ class ConfigWidgetBase(QWidget, ConfigWidgetInterface):
         if hasattr(self, 'setupUi'):
             self.setupUi(self)
         self.settings = {}
+        self.child_tabs = []
+        for v in self.__dict__.values():
+            if isinstance(v, ConfigTabWidget):
+                self.child_tabs.append(v)
 
     def register(self, name, config_obj, gui_name=None, choices=None,
             restart_required=False, empty_string_is_None=True, setting=Setting):
@@ -268,7 +301,7 @@ class ConfigWidgetBase(QWidget, ConfigWidgetInterface):
         Register a setting.
 
         :param name: The setting name
-        :param config: The config object that reads/writes the setting
+        :param config_obj: The config object that reads/writes the setting
         :param gui_name: The name of the GUI object that presents an interface
                          to change the setting. By default it is assumed to be
                          ``'opt_' + name``.
@@ -304,6 +337,9 @@ class ConfigWidgetBase(QWidget, ConfigWidgetInterface):
         for setting in self.settings.values():
             setting.restore_defaults()
 
+    def register_child_tab(self, tab):
+        self.child_tabs.append(tab)
+
 
 def get_plugin(category, name):
     for plugin in preferences_plugins():
@@ -312,6 +348,12 @@ def get_plugin(category, name):
     raise ValueError(
             'No Preferences Plugin with category: %s and name: %s found' %
             (category, name))
+
+
+class ConfigTabWidget(ConfigWidgetBase):
+
+    def set_changed_signal(self, changed_signal):
+        self.changed_signal.connect(changed_signal)
 
 
 class ConfigDialog(QDialog):
@@ -328,8 +370,8 @@ class ConfigDialog(QDialog):
 
 
 def init_gui():
-    from calibre.gui2.ui import Main
     from calibre.gui2.main import option_parser
+    from calibre.gui2.ui import Main
     from calibre.library import db
     parser = option_parser()
     opts, args = parser.parse_args([])
@@ -358,9 +400,8 @@ def show_config_widget(category, name, gui=None, show_restart_msg=False,
     d = ConfigDialog(parent)
     d.resize(750, 550)
     conf_name = 'config_widget_dialog_geometry_%s_%s'%(category, name)
-    geom = gprefs.get(conf_name, None)
     d.setWindowTitle(_('Configure ') + pl.gui_name)
-    d.setWindowIcon(QIcon(I('config.png')))
+    d.setWindowIcon(QIcon.ic('config.png'))
     bb = QDialogButtonBox(d)
     bb.setStandardButtons(QDialogButtonBox.StandardButton.Apply|QDialogButtonBox.StandardButton.Cancel|QDialogButtonBox.StandardButton.RestoreDefaults)
     bb.accepted.connect(d.accept)
@@ -378,7 +419,7 @@ def show_config_widget(category, name, gui=None, show_restart_msg=False,
         b.setDefault(True)
         b.setAutoDefault(True)
     w.changed_signal.connect(onchange)
-    bb.button(QDialogButtonBox.StandardButton.Cancel).setFocus(True)
+    bb.button(QDialogButtonBox.StandardButton.Cancel).setFocus(Qt.FocusReason.OtherFocusReason)
     l = QVBoxLayout()
     d.setLayout(l)
     l.addWidget(w)
@@ -388,12 +429,12 @@ def show_config_widget(category, name, gui=None, show_restart_msg=False,
         gui = init_gui()
         mygui = True
     w.genesis(gui)
+    w.do_on_child_tabs('genesis', gui)
     w.initialize()
-    if geom is not None:
-        QApplication.instance().safe_restore_geometry(d, geom)
-    d.exec_()
-    geom = bytearray(d.saveGeometry())
-    gprefs[conf_name] = geom
+    w.do_on_child_tabs('initialize')
+    d.restore_geometry(gprefs, conf_name)
+    d.exec()
+    d.save_geometry(gprefs, conf_name)
     rr = getattr(d, 'restart_required', False)
     if show_restart_msg and rr:
         from calibre.gui2 import warning_dialog
@@ -401,6 +442,58 @@ def show_config_widget(category, name, gui=None, show_restart_msg=False,
     if mygui and not never_shutdown:
         gui.shutdown()
     return rr
+
+
+class ListViewWithMoveByKeyPress(QListView):
+
+    def set_movement_functions(self, up_function, down_function):
+        self.up_function = up_function
+        self.down_function = down_function
+
+    def event(self, event):
+        if (event.type() == QEvent.KeyPress and
+            QApplication.keyboardModifiers() == Qt.KeyboardModifier.ControlModifier):
+            if event.key() == Qt.Key.Key_Up:
+                self.up_function()
+            elif event.key() == Qt.Key.Key_Down:
+                self.down_function()
+            return True
+        return QListView.event(self, event)
+
+
+class ListWidgetWithMoveByKeyPress(QListWidget):
+
+    def set_movement_functions(self, up_function, down_function):
+        self.up_function = up_function
+        self.down_function = down_function
+
+    def event(self, event):
+        if (event.type() == QEvent.KeyPress and
+            QApplication.keyboardModifiers() == Qt.KeyboardModifier.ControlModifier):
+            if event.key() == Qt.Key.Key_Up:
+                self.up_function()
+            elif event.key() == Qt.Key.Key_Down:
+                self.down_function()
+            return True
+        return QListWidget.event(self, event)
+
+
+class TableWidgetWithMoveByKeyPress(QTableWidget):
+
+    def set_movement_functions(self, up_function, down_function):
+        self.up_function = up_function
+        self.down_function = down_function
+
+    def event(self, event):
+        if (event.type() == QEvent.KeyPress and
+            QApplication.keyboardModifiers() == Qt.KeyboardModifier.ControlModifier):
+            if event.key() == Qt.Key.Key_Up:
+                self.up_function()
+            elif event.key() == Qt.Key.Key_Down:
+                self.down_function()
+            return True
+        return QTableWidget.event(self, event)
+
 
 # Testing {{{
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:fdm=marker:ai
 
 
 __license__   = 'GPL v3'
@@ -16,8 +15,12 @@ class InvalidBook(ValueError):
 class DRMError(_DRMError):
 
     def __init__(self):
-        super(DRMError, self).__init__(_('This file is locked with DRM. It cannot be edited.'))
+        super().__init__(_('This file is locked with DRM. It cannot be edited.'))
 
 
 class MalformedMarkup(ValueError):
+    pass
+
+
+class UnsupportedContainerType(Exception):
     pass

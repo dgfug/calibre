@@ -1,16 +1,16 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:fdm=marker:ai
 
 
 __license__   = 'GPL v3'
 __copyright__ = '2012, Kovid Goyal <kovid at kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import os, time, re
+import os
+import re
+import time
 from functools import partial
 
-from calibre.devices.errors import DeviceError, WrongDestinationError, FreeSpaceError
-from polyglot.builtins import unicode_type
+from calibre.devices.errors import DeviceError, FreeSpaceError, WrongDestinationError
 
 
 def sanity_check(on_card, files, card_prefixes, free_space):
@@ -60,8 +60,8 @@ def build_template_regexp(template):
         template = template.rpartition('/')[2]
         return re.compile(re.sub('{([^}]*)}', f, template) + r'([_\d]*$)')
     except:
-        prints(u'Failed to parse template: %r'%template)
-        template = u'{title} - {authors}'
+        prints('Failed to parse template: %r'%template)
+        template = '{title} - {authors}'
         return re.compile(re.sub('{([^}]*)}', f, template) + r'([_\d]*$)')
 
 
@@ -74,7 +74,7 @@ def create_upload_path(mdata, fname, template, sanitize,
         filename_callback=lambda x, y:x,
         sanitize_path_components=lambda x: x
         ):
-    from calibre.library.save_to_disk import get_components, config
+    from calibre.library.save_to_disk import config, get_components
     from calibre.utils.filenames import shorten_components_to
 
     special_tag = None
@@ -91,15 +91,15 @@ def create_upload_path(mdata, fname, template, sanitize,
         except:
             today = time.localtime()
             date = (today[0], today[1], today[2])
-        template = u"{title}_%d-%d-%d" % date
+        template = "{title}_%d-%d-%d" % date
 
     fname = sanitize(fname)
     ext = path_type.splitext(fname)[1]
 
     opts = config().parse()
-    if not isinstance(template, unicode_type):
+    if not isinstance(template, str):
         template = template.decode('utf-8')
-    app_id = unicode_type(getattr(mdata, 'application_id', ''))
+    app_id = str(getattr(mdata, 'application_id', ''))
     id_ = mdata.get('id', fname)
     extra_components = get_components(template, mdata, id_,
             timefmt=opts.send_timefmt, length=maxlen-len(app_id)-1,

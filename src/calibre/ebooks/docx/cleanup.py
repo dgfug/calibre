@@ -1,12 +1,12 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 
 
 __license__ = 'GPL v3'
 __copyright__ = '2013, Kovid Goyal <kovid at kovidgoyal.net>'
 
 import os
-from polyglot.builtins import itervalues, range
+
+from polyglot.builtins import itervalues
 
 NBSP = '\xa0'
 
@@ -113,10 +113,18 @@ def wrap_contents(tag_name, elem):
     elem.append(wrapper)
 
 
-def cleanup_markup(log, root, styles, dest_dir, detect_cover, XPath):
+def cleanup_markup(log, root, styles, dest_dir, detect_cover, XPath, uuid):
     # Apply vertical-align
     for span in root.xpath('//span[@data-docx-vert]'):
         wrap_contents(span.attrib.pop('data-docx-vert'), span)
+
+    for span in root.xpath(f'//*[@data-noteref-container="{uuid}"]'):
+        span.attrib.pop('data-noteref-container')
+        parent = span.getparent()
+        idx = parent.index(span)
+        if idx + 1 < len(parent) and (ns := parent[idx+1]) and hasattr(ns, 'get') and ns.get('data-noteref-container'):
+            if len(span) and not span[-1].tail:
+                span[-1].tail = '\xa0'
 
     # Move <hr>s outside paragraphs, if possible.
     pancestor = XPath('|'.join('ancestor::%s[1]' % x for x in ('p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6')))
@@ -220,7 +228,7 @@ def cleanup_markup(log, root, styles, dest_dir, detect_cover, XPath):
             if os.path.exists(path) and before_count(root, img, limit=10) < 5:
                 from calibre.utils.imghdr import identify
                 try:
-                    with lopen(path, 'rb') as imf:
+                    with open(path, 'rb') as imf:
                         fmt, width, height = identify(imf)
                 except:
                     width, height, fmt = 0, 0, None  # noqa

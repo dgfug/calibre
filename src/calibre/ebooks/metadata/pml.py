@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-
 __license__   = 'GPL v3'
 __copyright__ = '2009, John Schember <john@nachtimwald.com>'
 __docformat__ = 'restructuredtext en'
@@ -10,14 +7,14 @@ Read meta information from TXT files
 '''
 
 
-import os
 import glob
+import os
 import re
 
+from calibre import prepare_string_for_xml
 from calibre.ebooks.metadata import MetaInformation
 from calibre.ptempfile import TemporaryDirectory
 from calibre.utils.zipfile import ZipFile
-from calibre import prepare_string_for_xml
 
 
 def get_metadata(stream, extract_cover=True):

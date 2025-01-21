@@ -6,7 +6,8 @@ __license__   = 'GPL v3'
 __copyright__ = '2011, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import re, threading
+import re
+import threading
 from functools import total_ordering
 
 from calibre import browser, random_user_agent
@@ -14,11 +15,11 @@ from calibre.customize import Plugin
 from calibre.ebooks.metadata import check_isbn
 from calibre.ebooks.metadata.author_mapper import cap_author_token
 from calibre.utils.localization import canonicalize_lang, get_lang
-from polyglot.builtins import iteritems, cmp
+from polyglot.builtins import cmp, iteritems
 
 
 def create_log(ostream=None):
-    from calibre.utils.logging import ThreadSafeLog, FileStream
+    from calibre.utils.logging import FileStream, ThreadSafeLog
     log = ThreadSafeLog(level=ThreadSafeLog.DEBUG)
     log.outputs = [FileStream(ostream)]
     return log
@@ -212,8 +213,8 @@ class Source(Plugin):
     ignore_ssl_errors = False
 
     #: Cached cover URLs can sometimes be unreliable (i.e. the download could
-    #: fail or the returned image could be bogus. If that is often the case
-    #: with this source set to False
+    #: fail or the returned image could be bogus). If that is often the case
+    #: with this source, set to False
     cached_cover_url_is_reliable = True
 
     #: A list of :class:`Option` objects. They will be used to automatically
@@ -441,8 +442,8 @@ class Source(Plugin):
         if not urls:
             log('No images found for, title: %r and authors: %r'%(title, authors))
             return
-        from threading import Thread
         import time
+        from threading import Thread
         if prefs_name:
             urls = urls[:self.prefs[prefs_name]]
         if get_best_cover:
@@ -497,7 +498,7 @@ class Source(Plugin):
 
     def get_book_urls(self, identifiers):
         '''
-        Override this method if you would like to return multiple urls for this book.
+        Override this method if you would like to return multiple URLs for this book.
         Return a list of 3-tuples. By default this method simply calls :func:`get_book_url`.
         '''
         data = self.get_book_url(identifiers)
@@ -508,7 +509,7 @@ class Source(Plugin):
     def get_cached_cover_url(self, identifiers):
         '''
         Return cached cover URL for the book identified by
-        the identifiers dict or None if no such URL exists.
+        the identifiers dictionary or None if no such URL exists.
 
         Note that this method must only return validated URLs, i.e. not URLS
         that could result in a generic cover image or a not found error.

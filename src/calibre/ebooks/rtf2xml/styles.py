@@ -1,4 +1,3 @@
-
 #########################################################################
 #                                                                       #
 #                                                                       #
@@ -11,9 +10,12 @@
 #                                                                       #
 #                                                                       #
 #########################################################################
-import sys, os
-from calibre.ebooks.rtf2xml import copy, border_parse
+import os
+import sys
+
+from calibre.ebooks.rtf2xml import border_parse, copy
 from calibre.ptempfile import better_mktemp
+
 from . import open_for_read, open_for_write
 
 
@@ -122,7 +124,7 @@ class Styles:
         'list-simpi'    : 'list-simple',
         'list-conti'    : 'list-continue',
         'list-hang_'    : 'list-hang',
-        # 'list-tebef'    :	'list-text-before',
+        # 'list-tebef'    : 'list-text-before',
         # 'list-level'    : 'level',
         'list-id___'    : 'list-id',
         'list-start'    : 'list-start',
@@ -550,7 +552,7 @@ class Styles:
                                 pass
                             else:
                                 if self.__run_level > 4:
-                                    msg = '%s %s is based on %s\n' % (type, key, value)
+                                    msg = f'{type} {key} is based on {value}\n'
                                     msg = 'There is no style with %s\n' % value
                                     raise self.__bug_handler(msg)
                             del self.__styles_dict[type][key][style]
@@ -581,13 +583,13 @@ class Styles:
             style_numbers = self.__styles_dict[type].keys()
             for num in style_numbers:
                 self.__write_obj.write(
-                'mi<tg<empty-att_<%s-style-in-table<num>%s' % (prefix, num)
+                f'mi<tg<empty-att_<{prefix}-style-in-table<num>{num}'
                 )
                 attributes = self.__styles_dict[type][num].keys()
                 for att in attributes:
                     this_value = self.__styles_dict[type][num][att]
                     self.__write_obj.write(
-                        '<%s>%s' % (att, this_value)
+                        f'<{att}>{this_value}'
                         )
                 self.__write_obj.write('\n')
             self.__write_obj.write(
@@ -662,7 +664,7 @@ class Styles:
             value = None
         if value:
             self.__write_obj.write(
-            'cw<ss<%s-style<nu<%s\n' % (prefix, value)
+            f'cw<ss<{prefix}-style<nu<{value}\n'
             )
         else:
             self.__write_obj.write(

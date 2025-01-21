@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# vim:fileencoding=utf-8
 
 
 __license__ = 'GPL v3'
@@ -9,7 +8,11 @@ __copyright__ = '2014, Kovid Goyal <kovid at kovidgoyal.net>'
 # To regenerate run:
 # sudo locale-gen -A && python3 lc_time.py
 
-import locale, os, pprint, sys
+import locale
+import os
+import pprint
+import sys
+
 
 def generate_data():
     def nl(code):

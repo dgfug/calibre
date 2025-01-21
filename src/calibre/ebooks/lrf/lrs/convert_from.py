@@ -1,5 +1,3 @@
-
-
 __license__   = 'GPL v3'
 __copyright__ = '2008, Kovid Goyal <kovid at kovidgoyal.net>'
 '''
@@ -11,18 +9,40 @@ import os
 import sys
 
 from calibre import setup_cli_handlers
-from calibre.ebooks.BeautifulSoup import (
-    BeautifulStoneSoup, CData, NavigableString, Tag
-)
+from calibre.ebooks.BeautifulSoup import BeautifulStoneSoup, CData, NavigableString, Tag
 from calibre.ebooks.chardet import xml_to_unicode
 from calibre.ebooks.lrf.pylrs.pylrs import (
-    CR, BlockStyle, Bold, Book, BookSetting, Canvas, CharButton, DropCaps, EmpLine,
-    Font, Footer, Header, Image, ImageBlock, ImageStream, Italic, JumpButton, Page,
-    PageStyle, Paragraph, Plot, RuledLine, Span, StyleDefault, Sub, Sup, TextBlock,
-    TextStyle
+    CR,
+    BlockStyle,
+    Bold,
+    Book,
+    BookSetting,
+    Canvas,
+    CharButton,
+    DropCaps,
+    EmpLine,
+    Font,
+    Footer,
+    Header,
+    Image,
+    ImageBlock,
+    ImageStream,
+    Italic,
+    JumpButton,
+    Page,
+    PageStyle,
+    Paragraph,
+    Plot,
+    RuledLine,
+    Span,
+    StyleDefault,
+    Sub,
+    Sup,
+    TextBlock,
+    TextStyle,
 )
 from calibre.utils.config import OptionParser
-from polyglot.builtins import string_or_bytes, unicode_type
+from polyglot.builtins import string_or_bytes
 
 
 class LrsParser:
@@ -55,7 +75,7 @@ class LrsParser:
         for key, val in tag.attrs:
             if key in exclude:
                 continue
-            result[unicode_type(key)] = val
+            result[str(key)] = val
         return result
 
     def text_tag_to_element(self, tag):

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 
 
 __license__ = 'GPL v3'
@@ -13,6 +12,7 @@ from io import BytesIO
 
 from calibre.ebooks.metadata.meta import get_metadata
 from calibre.srv.tests.base import LibraryBaseTest
+from calibre.utils.localization import _
 from polyglot.binary import as_base64_bytes
 from polyglot.http_client import FORBIDDEN, NOT_FOUND, OK
 from polyglot.urllib import quote, urlencode
@@ -20,7 +20,7 @@ from polyglot.urllib import quote, urlencode
 
 def make_request(conn, url, headers={}, prefix='/ajax', username=None, password=None, method='GET', data=None):
     if username and password:
-        headers[b'Authorization'] = b'Basic ' + as_base64_bytes((username + ':' + password))
+        headers[b'Authorization'] = b'Basic ' + as_base64_bytes(username + ':' + password)
     conn.request(method, prefix + url, headers=headers, body=data)
     r = conn.getresponse()
     data = r.read()
@@ -175,7 +175,7 @@ class ContentTest(LibraryBaseTest):
 
             def d(book_ids, username='12', status=OK):
                 book_ids = ','.join(map(str, book_ids))
-                r, data = make_request(conn, '/cdb/delete-books/{}'.format(book_ids),
+                r, data = make_request(conn, f'/cdb/delete-books/{book_ids}',
                                        username=username, password='test', prefix='', method='POST')
                 ae(status, r.status)
                 return data

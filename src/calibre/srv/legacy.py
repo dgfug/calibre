@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 # License: GPLv3 Copyright: 2016, Kovid Goyal <kovid at kovidgoyal.net>
 
 
@@ -18,7 +17,8 @@ from calibre.srv.routes import endpoint
 from calibre.srv.utils import get_library_data, http_date
 from calibre.utils.cleantext import clean_xml_chars
 from calibre.utils.date import dt_as_local, is_date_undefined, timestampfromdt
-from polyglot.builtins import iteritems, string_or_bytes, filter, as_bytes, unicode_type
+from calibre.utils.localization import _
+from polyglot.builtins import as_bytes, iteritems, string_or_bytes
 from polyglot.urllib import urlencode
 
 # /mobile {{{
@@ -62,10 +62,10 @@ def build_search_box(num, search, sort, order, ctx, field_metadata, library_id):
 
     num_select = E.select(name='num')
     for option in (5, 10, 25, 100):
-        kwargs = {'value':unicode_type(option)}
+        kwargs = {'value':str(option)}
         if option == num:
             kwargs['SELECTED'] = 'SELECTED'
-        num_select.append(E.option(unicode_type(option), **kwargs))
+        num_select.append(E.option(str(option), **kwargs))
     num_select.tail = ' books matching '
     form.append(num_select)
 
@@ -169,7 +169,7 @@ def build_index(rd, books, num, search, sort, order, start, total, url_base, fie
                     href=ctx.url_for('/legacy/get', what=fmt, book_id=book.id, library_id=library_id, filename=book_filename(rd, book.id, book, fmt))
                 ),
                 class_='button')
-            s.tail = u''
+            s.tail = ''
             data.append(s)
 
         div = E.div(class_='data-container')
@@ -187,11 +187,11 @@ def build_index(rd, books, num, search, sort, order, start, total, url_base, fie
             if val:
                 ctext += '%s=[%s] '%(name, val)
 
-        first = E.span('%s %s by %s' % (book.title, series,
+        first = E.span('{} {} by {}'.format(book.title, series,
             authors_to_string(book.authors)), class_='first-line')
         div.append(first)
         ds = '' if is_date_undefined(book.timestamp) else strftime('%d %b, %Y', t=dt_as_local(book.timestamp).timetuple())
-        second = E.span('%s %s %s' % (ds, tags, ctext), class_='second-line')
+        second = E.span(f'{ds} {tags} {ctext}', class_='second-line')
         div.append(second)
 
         books_table.append(E.tr(thumbnail, data))
@@ -254,9 +254,13 @@ def mobile(ctx, rd):
 @endpoint('/browse/{+rest=""}')
 def browse(ctx, rd, rest):
     if rest.startswith('book/'):
+        try:
+            book_id = int(rest[5:])
+        except Exception:
+            raise HTTPRedirect(ctx.url_for(None))
         # implementation of https://bugs.launchpad.net/calibre/+bug/1698411
         # redirect old server book URLs to new URLs
-        redirect = ctx.url_for(None) + '#book_id=' + rest[5:] + "&amp;panel=book_details"
+        redirect = ctx.url_for(None) + f'#book_id={book_id}&amp;panel=book_details'
         from lxml import etree as ET
         return html(ctx, rd, endpoint,
                  E.html(E.head(
@@ -278,4 +282,11 @@ def stanza(ctx, rd, rest):
 def legacy_get(ctx, rd, what, book_id, library_id, filename):
     # See https://www.mobileread.com/forums/showthread.php?p=3531644 for why
     # this is needed for Kobo browsers
-    return get(ctx, rd, what, book_id, library_id)
+    ua = rd.inheaders.get('User-Agent', '')
+    is_old_kindle = 'Kindle/3' in ua
+    ans = get(ctx, rd, what, book_id, library_id)
+    if is_old_kindle:
+        # Content-Disposition causes downloads to fail when the filename has non-ascii chars in it
+        # https://www.mobileread.com/forums/showthread.php?t=364015
+        rd.outheaders.pop('Content-Disposition', '')
+    return ans

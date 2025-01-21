@@ -1,5 +1,3 @@
-
-
 # Copyright (c) 2007 Mike Higgins (Falstaff)
 # Modifications from the original:
 #    Copyright (C) 2007 Kovid Goyal <kovid@kovidgoyal.net>
@@ -38,23 +36,37 @@
 #                           Plot, Image (outside of ImageBlock),
 #                           EmpLine, EmpDots
 
-import os, re, codecs, operator, io
-from xml.sax.saxutils import escape
+import codecs
+import io
+import operator
+import os
+import re
 from datetime import date
-from xml.etree.ElementTree import Element, SubElement, ElementTree
+from xml.etree.ElementTree import Element, ElementTree, SubElement
+from xml.sax.saxutils import escape
 
-from .pylrf import (LrfWriter, LrfObject, LrfTag, LrfToc,
-        STREAM_COMPRESSED, LrfTagStream, LrfStreamBase, IMAGE_TYPE_ENCODING,
-        BINDING_DIRECTION_ENCODING, LINE_TYPE_ENCODING, LrfFileStream,
-        STREAM_FORCE_COMPRESSED)
 from calibre.utils.date import isoformat
+
+from .pylrf import (
+    BINDING_DIRECTION_ENCODING,
+    IMAGE_TYPE_ENCODING,
+    LINE_TYPE_ENCODING,
+    STREAM_COMPRESSED,
+    STREAM_FORCE_COMPRESSED,
+    LrfFileStream,
+    LrfObject,
+    LrfStreamBase,
+    LrfTag,
+    LrfTagStream,
+    LrfToc,
+    LrfWriter,
+)
 
 DEFAULT_SOURCE_ENCODING = "cp1252"      # default is us-windows character set
 DEFAULT_GENREADING      = "fs"          # default is yes to both lrf and lrs
 
-from calibre import __appname__, __version__
-from calibre import entity_to_unicode
-from polyglot.builtins import string_or_bytes, unicode_type, iteritems, native_string_type
+from calibre import __appname__, __version__, replace_entities
+from polyglot.builtins import iteritems, native_string_type, string_or_bytes
 
 
 class LrsError(Exception):
@@ -229,7 +241,7 @@ class LrsAttributes:
                 raise LrsError("%s does not support setting %s" %
                         (self.__class__.__name__, name))
             if isinstance(value, int):
-                value = unicode_type(value)
+                value = str(value)
             self.attrs[name] = value
 
 
@@ -305,8 +317,7 @@ class LrsContainer:
             if predicate(child):
                 yield child
             if hasattr(child, 'get_all'):
-                for grandchild in child.get_all(predicate):
-                    yield grandchild
+                yield from child.get_all(predicate)
 
 
 class LrsObject:
@@ -333,13 +344,13 @@ class LrsObject:
     def lrsObjectElement(self, name, objlabel="objlabel", labelName=None,
             labelDecorate=True, **settings):
         element = Element(name)
-        element.attrib["objid"] = unicode_type(self.objId)
+        element.attrib["objid"] = str(self.objId)
         if labelName is None:
             labelName = name
         if labelDecorate:
             label = "%s.%d" % (labelName, self.objId)
         else:
-            label = unicode_type(self.objId)
+            label = str(self.objId)
         element.attrib[objlabel] = label
         element.attrib.update(settings)
         return element
@@ -565,7 +576,7 @@ class Book(Delegator):
         factor = base_font_size / old_base_font_size
 
         def rescale(old):
-            return unicode_type(int(int(old) * factor))
+            return str(int(int(old) * factor))
 
         text_blocks = list(main.get_all(lambda x: isinstance(x, TextBlock)))
         for tb in text_blocks:
@@ -696,7 +707,7 @@ class TableOfContents:
     def addTocEntry(self, tocLabel, textBlock):
         if not isinstance(textBlock, (Canvas, TextBlock, ImageBlock, RuledLine)):
             raise LrsError("TOC destination must be a Canvas, TextBlock, ImageBlock or RuledLine"+
-                            " not a " + unicode_type(type(textBlock)))
+                            " not a " + str(type(textBlock)))
 
         if textBlock.parent is None:
             raise LrsError("TOC text block must be already appended to a page")
@@ -741,13 +752,13 @@ class TableOfContents:
 class TocLabel:
 
     def __init__(self, label, textBlock):
-        self.label = escape(re.sub(r'&(\S+?);', entity_to_unicode, label))
+        self.label = escape(replace_entities(label))
         self.textBlock = textBlock
 
     def toElement(self, se):
         return ElementWithText("TocLabel", self.label,
-                 refobj=unicode_type(self.textBlock.objId),
-                 refpage=unicode_type(self.textBlock.parent.objId))
+                 refobj=str(self.textBlock.objId),
+                 refpage=str(self.textBlock.parent.objId))
 
 
 class BookInfo:
@@ -808,7 +819,7 @@ class DocInfo:
         self.thumbnail = None
         self.language = "en"
         self.creator  = None
-        self.creationdate = unicode_type(isoformat(date.today()))
+        self.creationdate = str(isoformat(date.today()))
         self.producer = "%s v%s"%(__appname__, __version__)
         self.numberofpages = "0"
 
@@ -832,7 +843,7 @@ class DocInfo:
         docInfo.append(ElementWithText("Creator", self.creator))
         docInfo.append(ElementWithText("CreationDate", self.creationdate))
         docInfo.append(ElementWithText("Producer", self.producer))
-        docInfo.append(ElementWithText("SumPage", unicode_type(self.numberofpages)))
+        docInfo.append(ElementWithText("SumPage", str(self.numberofpages)))
         return docInfo
 
 
@@ -1094,21 +1105,21 @@ class LrsStyle(LrsObject, LrsAttributes, LrsContainer):
         self.elementName = elementName
         self.objectsAppended = False
         # self.label = "%s.%d" % (elementName, self.objId)
-        # self.label = unicode_type(self.objId)
+        # self.label = str(self.objId)
         # self.parent = None
 
     def update(self, settings):
         for name, value in settings.items():
             if name not in self.__class__.validSettings:
-                raise LrsError("%s not a valid setting for %s" % (name, self.__class__.__name__))
+                raise LrsError(f"{name} not a valid setting for {self.__class__.__name__}")
             self.attrs[name] = value
 
     def getLabel(self):
-        return unicode_type(self.objId)
+        return str(self.objId)
 
     def toElement(self, se):
         element = Element(self.elementName, stylelabel=self.getLabel(),
-                objid=unicode_type(self.objId))
+                objid=str(self.objId))
         element.attrib.update(self.attrs)
         return element
 
@@ -1236,14 +1247,14 @@ class PageStyle(LrsStyle):
             del settings[evenbase]
             if evenObj.parent is None:
                 parent.append(evenObj)
-            settings[evenbase + "id"] = unicode_type(evenObj.objId)
+            settings[evenbase + "id"] = str(evenObj.objId)
 
         if oddbase in settings:
             oddObj = settings[oddbase]
             del settings[oddbase]
             if oddObj.parent is None:
                 parent.append(oddObj)
-            settings[oddbase + "id"] = unicode_type(oddObj.objId)
+            settings[oddbase + "id"] = str(oddObj.objId)
 
     def appendReferencedObjects(self, parent):
         if self.objectsAppended:
@@ -1486,7 +1497,7 @@ class Paragraph(LrsContainer):
 
     def __init__(self, text=None):
         LrsContainer.__init__(self, [Text, CR, DropCaps, CharButton,
-                                     LrsSimpleChar1, bytes, unicode_type])
+                                     LrsSimpleChar1, bytes, str])
         if text is not None:
             if isinstance(text, string_or_bytes):
                 text = Text(text)
@@ -1521,7 +1532,7 @@ class Paragraph(LrsContainer):
 class LrsTextTag(LrsContainer):
 
     def __init__(self, text, validContents):
-        LrsContainer.__init__(self, [Text, bytes, unicode_type] + validContents)
+        LrsContainer.__init__(self, [Text, bytes, str] + validContents)
         if text is not None:
             self.append(text)
 
@@ -1580,7 +1591,7 @@ class DropCaps(LrsTextTag):
         return self.text is None or not self.text.strip()
 
     def toElement(self, se):
-        elem =  Element('DrawChar', line=unicode_type(self.line))
+        elem =  Element('DrawChar', line=str(self.line))
         appendTextElements(elem, self.contents, se)
         return elem
 
@@ -1656,7 +1667,7 @@ class JumpTo(LrsContainer):
         self.textBlock = textBlock
 
     def toElement(self, se):
-        return Element("JumpTo", refpage=unicode_type(self.textBlock.parent.objId), refobj=unicode_type(self.textBlock.objId))
+        return Element("JumpTo", refpage=str(self.textBlock.parent.objId), refobj=str(self.textBlock.objId))
 
 
 class Plot(LrsSimpleChar1, LrsContainer):
@@ -1688,8 +1699,8 @@ class Plot(LrsSimpleChar1, LrsContainer):
             parent.append(self.obj)
 
     def toElement(self, se):
-        elem =  Element('Plot', xsize=unicode_type(self.xsize), ysize=unicode_type(self.ysize),
-                                refobj=unicode_type(self.obj.objId))
+        elem =  Element('Plot', xsize=str(self.xsize), ysize=str(self.ysize),
+                                refobj=str(self.obj.objId))
         if self.adjustment:
             elem.set('adjustment', self.adjustment)
         return elem
@@ -1771,7 +1782,7 @@ class Space(LrsSimpleChar1, LrsContainer):
         if self.xsize == 0:
             return
 
-        return Element("Space", xsize=unicode_type(self.xsize))
+        return Element("Space", xsize=str(self.xsize))
 
     def toLrfContainer(self, lrfWriter, container):
         if self.xsize != 0:
@@ -1785,7 +1796,7 @@ class Box(LrsSimpleChar1, LrsContainer):
     """
 
     def __init__(self, linetype="solid"):
-        LrsContainer.__init__(self, [Text, bytes, unicode_type])
+        LrsContainer.__init__(self, [Text, bytes, str])
         if linetype not in LINE_TYPE_ENCODING:
             raise LrsError(linetype + " is not a valid line type")
         self.linetype = linetype
@@ -1805,7 +1816,7 @@ class Box(LrsSimpleChar1, LrsContainer):
 class Span(LrsSimpleChar1, LrsContainer):
 
     def __init__(self, text=None, **attrs):
-        LrsContainer.__init__(self, [LrsSimpleChar1, Text, bytes, unicode_type])
+        LrsContainer.__init__(self, [LrsSimpleChar1, Text, bytes, str])
         if text is not None:
             if isinstance(text, string_or_bytes):
                 text = Text(text)
@@ -1858,7 +1869,7 @@ class Span(LrsSimpleChar1, LrsContainer):
     def toElement(self, se):
         element = Element('Span')
         for (key, value) in self.attrs.items():
-            element.set(key, unicode_type(value))
+            element.set(key, str(value))
 
         appendTextElements(element, self.contents, se)
         return element
@@ -1871,9 +1882,9 @@ class EmpLine(LrsTextTag, LrsSimpleChar1):
     def __init__(self, text=None, emplineposition='before', emplinetype='solid'):
         LrsTextTag.__init__(self, text, [LrsSimpleChar1])
         if emplineposition not in self.__class__.emplinepositions:
-            raise LrsError('emplineposition for an EmpLine must be one of: '+unicode_type(self.__class__.emplinepositions))
+            raise LrsError('emplineposition for an EmpLine must be one of: '+str(self.__class__.emplinepositions))
         if emplinetype not in self.__class__.emplinetypes:
-            raise LrsError('emplinetype for an EmpLine must be one of: '+unicode_type(self.__class__.emplinetypes))
+            raise LrsError('emplinetype for an EmpLine must be one of: '+str(self.__class__.emplinetypes))
 
         self.emplinetype     = emplinetype
         self.emplineposition = emplineposition
@@ -1933,9 +1944,9 @@ class BlockSpace(LrsContainer):
         element = Element("BlockSpace")
 
         if self.xspace != 0:
-            element.attrib["xspace"] = unicode_type(self.xspace)
+            element.attrib["xspace"] = str(self.xspace)
         if self.yspace != 0:
-            element.attrib["yspace"] = unicode_type(self.yspace)
+            element.attrib["yspace"] = str(self.yspace)
 
         return element
 
@@ -1949,7 +1960,7 @@ class CharButton(LrsSimpleChar1, LrsContainer):
     """
 
     def __init__(self, button, text=None):
-        LrsContainer.__init__(self, [bytes, unicode_type, Text, LrsSimpleChar1])
+        LrsContainer.__init__(self, [bytes, str, Text, LrsSimpleChar1])
         self.button = None
         if button is not None:
             self.setButton(button)
@@ -1979,7 +1990,7 @@ class CharButton(LrsSimpleChar1, LrsContainer):
         container.appendLrfTag(LrfTag("CharButtonEnd"))
 
     def toElement(self, se):
-        cb = Element("CharButton", refobj=unicode_type(self.button.objId))
+        cb = Element("CharButton", refobj=str(self.button.objId))
         appendTextElements(cb, self.contents, se)
         return cb
 
@@ -2081,8 +2092,8 @@ class JumpButton(LrsObject, LrsContainer):
         b = self.lrsObjectElement("Button")
         pb = SubElement(b, "PushButton")
         SubElement(pb, "JumpTo",
-            refpage=unicode_type(self.textBlock.parent.objId),
-            refobj=unicode_type(self.textBlock.objId))
+            refpage=str(self.textBlock.parent.objId),
+            refobj=str(self.textBlock.objId))
         return b
 
 
@@ -2230,8 +2241,8 @@ class PutObj(LrsContainer):
             self.content.objId)))
 
     def toElement(self, se):
-        el = Element("PutObj", x1=unicode_type(self.x1), y1=unicode_type(self.y1),
-                    refobj=unicode_type(self.content.objId))
+        el = Element("PutObj", x1=str(self.x1), y1=str(self.y1),
+                    refobj=str(self.content.objId))
         return el
 
 
@@ -2313,9 +2324,9 @@ class Image(LrsObject, LrsContainer, LrsAttributes):
 
     def toElement(self, se):
         element = self.lrsObjectElement("Image", **self.attrs)
-        element.set("refstream", unicode_type(self.refstream.objId))
+        element.set("refstream", str(self.refstream.objId))
         for name in ["x0", "y0", "x1", "y1", "xsize", "ysize"]:
-            element.set(name, unicode_type(getattr(self, name)))
+            element.set(name, str(getattr(self, name)))
         return element
 
     def toLrf(self, lrfWriter):
@@ -2396,9 +2407,9 @@ class ImageBlock(LrsObject, LrsContainer, LrsAttributes):
 
     def toElement(self, se):
         element = self.lrsObjectElement("ImageBlock", **self.attrs)
-        element.set("refstream", unicode_type(self.refstream.objId))
+        element.set("refstream", str(self.refstream.objId))
         for name in ["x0", "y0", "x1", "y1", "xsize", "ysize"]:
-            element.set(name, unicode_type(getattr(self, name)))
+            element.set(name, str(getattr(self, name)))
         element.text = self.alttext
         return element
 

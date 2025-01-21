@@ -1,4 +1,3 @@
-
 #########################################################################
 #                                                                       #
 #                                                                       #
@@ -12,8 +11,10 @@
 #                                                                       #
 #########################################################################
 import os
+
 from calibre.ebooks.rtf2xml import copy
 from calibre.ptempfile import better_mktemp
+
 from . import open_for_read, open_for_write
 
 # note to self. This is the first module in which I use tempfile. A good idea?
@@ -67,7 +68,7 @@ class TableInfo:
                     self.__write_obj.write('mi<tg<open-att__<table')
                     keys = table_dict.keys()
                     for key in keys:
-                        self.__write_obj.write('<%s>%s' % (key, table_dict[key]))
+                        self.__write_obj.write(f'<{key}>{table_dict[key]}')
                     self.__write_obj.write('\n')
                     self.__table_data = self.__table_data[1:]
                 else:

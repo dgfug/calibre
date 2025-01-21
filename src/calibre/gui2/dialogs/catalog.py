@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 __license__   = 'GPL v3'
@@ -10,15 +9,13 @@ import importlib
 import os
 import sys
 import weakref
-from qt.core import (
-    QApplication, QCoreApplication, QDialog, QDialogButtonBox, QScrollArea, QSize
-)
+
+from qt.core import QDialog, QDialogButtonBox, QScrollArea, QSize
 
 from calibre.customize import PluginInstallationType
 from calibre.customize.ui import catalog_plugins, config
 from calibre.gui2 import dynamic, info_dialog
 from calibre.gui2.dialogs.catalog_ui import Ui_Dialog
-from polyglot.builtins import unicode_type
 
 
 class Catalog(QDialog, Ui_Dialog):
@@ -27,7 +24,8 @@ class Catalog(QDialog, Ui_Dialog):
 
     def __init__(self, parent, dbspec, ids, db):
         import re
-        from PyQt5.uic import compileUi
+
+        from PyQt6.uic import compileUi
 
         from calibre import prints as info
 
@@ -36,7 +34,7 @@ class Catalog(QDialog, Ui_Dialog):
         self.dbspec, self.ids = dbspec, ids
 
         # Display the number of books we've been passed
-        self.count.setText(unicode_type(self.count.text()).format(len(ids)))
+        self.count.setText(str(self.count.text()).format(len(ids)))
 
         # Display the last-used title
         self.title.setText(dynamic.get('catalog_last_used_title',
@@ -55,7 +53,7 @@ class Catalog(QDialog, Ui_Dialog):
                     pw = catalog_widget.PluginWidget()
                     pw.parent_ref = weakref.ref(self)
                     pw.initialize(name, db)
-                    pw.ICON = I('forward.png')
+                    pw.ICON = 'forward.png'
                     self.widgets.append(pw)
                     [self.fmts.append([file_type.upper(), pw.sync_enabled,pw]) for file_type in plugin.file_types]
                 except ImportError:
@@ -88,7 +86,7 @@ class Catalog(QDialog, Ui_Dialog):
                         catalog_widget = importlib.import_module(name)
                         pw = catalog_widget.PluginWidget()
                         pw.initialize(name)
-                        pw.ICON = I('forward.png')
+                        pw.ICON = 'forward.png'
                         self.widgets.append(pw)
                         [self.fmts.append([file_type.upper(), pw.sync_enabled,pw]) for file_type in plugin.file_types]
                     except ImportError:
@@ -103,7 +101,7 @@ class Catalog(QDialog, Ui_Dialog):
         self.widgets = sorted(self.widgets, key=lambda x: x.TITLE)
 
         # Generate a sorted list of installed catalog formats/sync_enabled pairs
-        fmts = sorted((x[0] for x in self.fmts))
+        fmts = sorted(x[0] for x in self.fmts)
 
         self.sync_enabled_formats = []
         for fmt in self.fmts:
@@ -134,19 +132,13 @@ class Catalog(QDialog, Ui_Dialog):
         self.buttonBox.button(QDialogButtonBox.StandardButton.Help).clicked.connect(self.help)
         self.show_plugin_tab(None)
 
-        geom = dynamic.get('catalog_window_geom', None)
-        if geom is not None:
-            QApplication.instance().safe_restore_geometry(self, bytes(geom))
-        else:
-            self.resize(self.sizeHint())
-        d = QCoreApplication.instance().desktop()
-        g = d.availableGeometry(d.screenNumber(self))
+        self.restore_geometry(dynamic, 'catalog_window_geom')
+        g = self.screen().availableSize()
         self.setMaximumWidth(g.width() - 50)
         self.setMaximumHeight(g.height() - 50)
 
     def sizeHint(self):
-        desktop = QCoreApplication.instance().desktop()
-        geom = desktop.availableGeometry(self)
+        geom = self.screen().availableSize()
         nh, nw = max(300, geom.height()-50), max(400, geom.width()-70)
         return QSize(nw, nh)
 
@@ -158,7 +150,7 @@ class Catalog(QDialog, Ui_Dialog):
         return ans
 
     def show_plugin_tab(self, idx):
-        cf = unicode_type(self.format.currentText()).lower()
+        cf = str(self.format.currentText()).lower()
         while self.tabs.count() > 1:
             self.tabs.removeTab(1)
         for pw in self.widgets:
@@ -176,7 +168,7 @@ class Catalog(QDialog, Ui_Dialog):
             self.buttonBox.button(QDialogButtonBox.StandardButton.Help).setVisible(False)
 
     def format_changed(self, idx):
-        cf = unicode_type(self.format.currentText())
+        cf = str(self.format.currentText())
         if cf in self.sync_enabled_formats:
             self.sync.setEnabled(True)
         else:
@@ -187,7 +179,7 @@ class Catalog(QDialog, Ui_Dialog):
         '''
         When title/format change, invalidate Preset in E-book options tab
         '''
-        cf = unicode_type(self.format.currentText()).lower()
+        cf = str(self.format.currentText()).lower()
         if cf in ('azw3', 'epub', 'mobi') and hasattr(self.options_widget, 'settings_changed'):
             self.options_widget.settings_changed("title/format")
 
@@ -200,13 +192,13 @@ class Catalog(QDialog, Ui_Dialog):
         return ans
 
     def save_catalog_settings(self):
-        self.catalog_format = unicode_type(self.format.currentText())
+        self.catalog_format = str(self.format.currentText())
         dynamic.set('catalog_preferred_format', self.catalog_format)
-        self.catalog_title = unicode_type(self.title.text())
+        self.catalog_title = str(self.title.text())
         dynamic.set('catalog_last_used_title', self.catalog_title)
         self.catalog_sync = bool(self.sync.isChecked())
         dynamic.set('catalog_sync_to_device', self.catalog_sync)
-        dynamic.set('catalog_window_geom', bytearray(self.saveGeometry()))
+        self.save_geometry(dynamic, 'catalog_window_geom')
         dynamic.set('catalog_add_to_library', self.add_to_library.isChecked())
 
     def apply(self, *args):
@@ -243,5 +235,5 @@ class Catalog(QDialog, Ui_Dialog):
                     show=True)
 
     def reject(self):
-        dynamic.set('catalog_window_geom', bytearray(self.saveGeometry()))
+        self.save_geometry(dynamic, 'catalog_window_geom')
         QDialog.reject(self)

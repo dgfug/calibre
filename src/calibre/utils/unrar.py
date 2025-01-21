@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:fdm=marker:ai
 
 
 __license__ = 'GPL v3'
@@ -7,12 +6,13 @@ __copyright__ = '2012, Kovid Goyal <kovid at kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
 import os
-import shutil
 import re
+import shutil
 from io import BytesIO
 
 from calibre.constants import filesystem_encoding, iswindows
 from calibre.ptempfile import PersistentTemporaryFile, TemporaryDirectory
+from calibre.utils.filenames import make_long_path_useable
 from polyglot.builtins import string_or_bytes
 
 
@@ -45,7 +45,7 @@ class StreamAsPath:
         if self.temppath is not None:
             try:
                 os.remove(self.temppath)
-            except EnvironmentError:
+            except OSError:
                 pass
         self.temppath = None
 
@@ -53,20 +53,27 @@ class StreamAsPath:
 def extract(path_or_stream, location):
     from unrardll import extract
     with StreamAsPath(path_or_stream) as path:
-        return extract(path, location)
+        return extract(make_long_path_useable(path), make_long_path_useable(location, threshold=0))
 
 
 def names(path_or_stream):
     from unrardll import names
     with StreamAsPath(path_or_stream) as path:
-        for name in names(path, only_useful=True):
-            yield name
+        yield from names(make_long_path_useable(path), only_useful=True)
+
+
+def headers(path_or_stream):
+    from unrardll import headers, is_useful
+    with StreamAsPath(path_or_stream) as path:
+        for h in headers(make_long_path_useable(path)):
+            if is_useful(h):
+                yield h
 
 
 def comment(path_or_stream):
     from unrardll import comment
     with StreamAsPath(path_or_stream) as path:
-        return comment(path)
+        return comment(make_long_path_useable(path))
 
 
 def extract_member(
@@ -83,9 +90,15 @@ def extract_member(
                (match is not None and match.search(fname) is not None)
 
     with StreamAsPath(path_or_stream) as path:
-        name, data = extract_member(path, is_match)
+        name, data = extract_member(make_long_path_useable(path), is_match)
         if name is not None:
             return name, data
+
+
+def extract_members(path_or_stream, callback):
+    from unrardll import extract_members
+    with StreamAsPath(path_or_stream) as path:
+        extract_members(make_long_path_useable(path), callback)
 
 
 def extract_first_alphabetically(stream):
@@ -99,7 +112,7 @@ def extract_first_alphabetically(stream):
 
 
 def extract_cover_image(stream):
-    from calibre.libunzip import sort_key, name_ok
+    from calibre.libunzip import name_ok, sort_key
     for name in sorted(names(stream), key=sort_key):
         if name_ok(name):
             return extract_member(stream, name=name, match=None)
@@ -129,7 +142,7 @@ def test_basic():
         c = comment(stream)
         expected = 'some comment\n'
         if c != expected:
-            raise ValueError('Comment not read: %r != %r' % (c, expected))
+            raise ValueError(f'Comment not read: {c!r} != {expected!r}')
         if set(names(stream)) != {
             '1/sub-one', 'one.txt', '2/sub-two.txt', '诶比屁.txt', 'Füße.txt',
             'uncompressed', 'max-compressed'}:
@@ -146,7 +159,7 @@ def test_basic():
                 d = extract_member(stream, name=name)
                 if d is None or d[1] != tdata[name]:
                     raise ValueError(
-                        'Failed to extract %s %r != %r' % (name, d, tdata[name]))
+                        f'Failed to extract {name} {d!r} != {tdata[name]!r}')
 
     do_test(stream)
     with PersistentTemporaryFile('test-unrar') as f:

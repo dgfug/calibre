@@ -6,14 +6,16 @@ __copyright__  = '2008, Kovid Goyal <kovid at kovidgoyal.net>,' \
 import codecs
 import os
 import re
+import struct
+
+from chm.chm import CHMFile, chmlib
 
 from calibre import guess_type as guess_mimetype
 from calibre.constants import filesystem_encoding, iswindows
 from calibre.ebooks.BeautifulSoup import BeautifulSoup, NavigableString
 from calibre.ebooks.chardet import xml_to_unicode
 from calibre.ebooks.metadata.toc import TOC
-from chm.chm import CHMFile, chmlib
-from polyglot.builtins import as_unicode, getcwd, unicode_type
+from polyglot.builtins import as_unicode
 
 
 def match_string(s1, s2_already_lowered):
@@ -43,7 +45,7 @@ class CHMReader(CHMFile):
 
     def __init__(self, input, log, input_encoding=None):
         CHMFile.__init__(self)
-        if isinstance(input, unicode_type):
+        if isinstance(input, str):
             enc = 'mbcs' if iswindows else filesystem_encoding
             try:
                 input = input.encode(enc)
@@ -72,6 +74,22 @@ class CHMReader(CHMFile):
         base = self.topics or self.home
         self.root = os.path.splitext(base.lstrip('/'))[0]
         self.hhc_path = self.root + ".hhc"
+
+    def relpath_to_first_html_file(self):
+        # See https://www.nongnu.org/chmspec/latest/Internal.html#SYSTEM
+        data = self.GetFile('/#SYSTEM')
+        pos = 4
+        while pos < len(data):
+            code, length_of_data = struct.unpack_from('<HH', data, pos)
+            pos += 4
+            if code == 2:
+                default_topic = data[pos:pos+length_of_data].rstrip(b'\0')
+                break
+            pos += length_of_data
+        else:
+            raise CHMError('No default topic found in CHM file that has no HHC ToC either')
+        default_topic = self.decode_hhp_filename(b'/' + default_topic)
+        return default_topic[1:]
 
     def decode_hhp_filename(self, path):
         if isinstance(path, str):
@@ -113,7 +131,7 @@ class CHMReader(CHMFile):
     def get_encoding(self):
         return self.encoding_from_system_file or self.encoding_from_lcid or 'cp1252'
 
-    def _parse_toc(self, ul, basedir=getcwd()):
+    def _parse_toc(self, ul, basedir=os.getcwd()):
         toc = TOC(play_order=self._playorder, base_path=basedir, text='')
         self._playorder += 1
         for li in ul('li', recursive=False):
@@ -140,6 +158,10 @@ class CHMReader(CHMFile):
             path = path.encode('utf-8')
         return CHMFile.ResolveObject(self, path)
 
+    def file_exists(self, path):
+        res, ui = self.ResolveObject(path)
+        return res == chmlib.CHM_RESOLVE_SUCCESS
+
     def GetFile(self, path):
         # have to have abs paths for ResolveObject, but Contents() deliberately
         # makes them relative. So we don't have to worry, re-add the leading /.
@@ -157,7 +179,7 @@ class CHMReader(CHMFile):
     def get_home(self):
         return self.GetFile(self.home)
 
-    def ExtractFiles(self, output_dir=getcwd(), debug_dump=False):
+    def ExtractFiles(self, output_dir=os.getcwd(), debug_dump=False):
         html_files = set()
         for path in self.Contents():
             fpath = path
@@ -189,10 +211,10 @@ class CHMReader(CHMFile):
             import shutil
             shutil.copytree(output_dir, os.path.join(debug_dump, 'debug_dump'))
         for lpath in html_files:
-            with lopen(lpath, 'r+b') as f:
+            with open(lpath, 'r+b') as f:
                 data = f.read()
                 data = self._reformat(data, lpath)
-                if isinstance(data, unicode_type):
+                if isinstance(data, str):
                     data = data.encode('utf-8')
                 f.seek(0)
                 f.truncate()
@@ -336,5 +358,5 @@ class CHMReader(CHMFile):
         if not os.path.isdir(dir):
             os.makedirs(dir)
 
-    def extract_content(self, output_dir=getcwd(), debug_dump=False):
+    def extract_content(self, output_dir=os.getcwd(), debug_dump=False):
         self.ExtractFiles(output_dir=output_dir, debug_dump=debug_dump)

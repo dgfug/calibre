@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-
 __license__   = 'GPL v3'
 __copyright__ = '2009, John Schember <john@nachtimwald.com>'
 
@@ -8,7 +5,8 @@ __copyright__ = '2009, John Schember <john@nachtimwald.com>'
 Read meta information from TXT files
 '''
 
-import re, os
+import os
+import re
 
 from calibre.ebooks.metadata import MetaInformation
 

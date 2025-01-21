@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 __license__   = 'GPL v3'
@@ -7,12 +6,10 @@ __copyright__ = '2010, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
 
-from calibre.gui2.preferences import ConfigWidgetBase, test_widget, \
-        AbortCommit
+from calibre.gui2.preferences import AbortCommit, ConfigWidgetBase, test_widget
 from calibre.gui2.preferences.sending_ui import Ui_Form
-from calibre.utils.config import ConfigProxy
 from calibre.library.save_to_disk import config
-from calibre.utils.config import prefs
+from calibre.utils.config import ConfigProxy, prefs
 
 
 class ConfigWidget(ConfigWidgetBase, Ui_Form):

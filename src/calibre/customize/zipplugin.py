@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 __license__   = 'GPL v3'
@@ -19,22 +18,18 @@ from importlib.machinery import ModuleSpec
 from importlib.util import decode_source
 
 from calibre import as_unicode
-from calibre.customize import (
-    InvalidPlugin, Plugin, PluginNotFound, numeric_version, platform
-)
-from polyglot.builtins import itervalues, map, reload, string_or_bytes, unicode_type
-
-# PEP 302 based plugin loading mechanism, works around the bug in zipimport in
-# python 2.x that prevents importing from zip files in locations whose paths
-# have non ASCII characters
+from calibre.customize import InvalidPlugin, Plugin, PluginNotFound, numeric_version, platform
+from polyglot.builtins import itervalues, reload, string_or_bytes
 
 
-def get_resources(zfp, name_or_list_of_names):
+def get_resources(zfp, name_or_list_of_names, print_tracebacks_for_missing_resources=True):
     '''
     Load resources from the plugin zip file
 
     :param name_or_list_of_names: List of paths to resources in the zip file using / as
                 separator, or a single path
+
+    :param print_tracebacks_for_missing_resources: When True missing resources are reported to STDERR
 
     :return: A dictionary of the form ``{name : file_contents}``. Any names
                 that were not found in the zip file will not be present in the
@@ -50,20 +45,27 @@ def get_resources(zfp, name_or_list_of_names):
             try:
                 ans[name] = zf.read(name)
             except:
-                import traceback
-                traceback.print_exc()
+                if print_tracebacks_for_missing_resources:
+                    print('Failed to load resource:', repr(name), 'from the plugin zip file:', zfp, file=sys.stderr)
+                    import traceback
+                    traceback.print_exc()
     if len(names) == 1:
         ans = ans.pop(names[0], None)
 
     return ans
 
 
-def get_icons(zfp, name_or_list_of_names):
+def get_icons(zfp, name_or_list_of_names, plugin_name='', print_tracebacks_for_missing_resources=True):
     '''
     Load icons from the plugin zip file
 
     :param name_or_list_of_names: List of paths to resources in the zip file using / as
                 separator, or a single path
+
+    :param plugin_name: The human friendly name of the plugin, used to load icons from
+                the current theme, if present.
+
+    :param print_tracebacks_for_missing_resources: When True missing resources are reported to STDERR
 
     :return: A dictionary of the form ``{name : QIcon}``. Any names
                 that were not found in the zip file will be null QIcons.
@@ -71,25 +73,34 @@ def get_icons(zfp, name_or_list_of_names):
                 be A QIcon.
     '''
     from qt.core import QIcon, QPixmap
-    names = name_or_list_of_names
-    ans = get_resources(zfp, names)
-    if isinstance(names, string_or_bytes):
-        names = [names]
-    if ans is None:
-        ans = {}
-    if isinstance(ans, string_or_bytes):
-        ans = dict([(names[0], ans)])
+    ans = {}
+    namelist = [name_or_list_of_names] if isinstance(name_or_list_of_names, string_or_bytes) else name_or_list_of_names
+    failed = set()
+    if plugin_name:
+        for name in namelist:
+            q = QIcon.ic(f'{plugin_name}/{name}')
+            if q.is_ok():
+                ans[name] = q
+            else:
+                failed.add(name)
+    else:
+        failed = set(namelist)
+    if failed:
+        from_zfp = get_resources(zfp, list(failed), print_tracebacks_for_missing_resources=print_tracebacks_for_missing_resources)
+        if from_zfp is None:
+            from_zfp = {}
+        elif isinstance(from_zfp, string_or_bytes):
+            from_zfp = {namelist[0]: from_zfp}
 
-    ians = {}
-    for name in names:
-        p = QPixmap()
-        raw = ans.get(name, None)
-        if raw:
-            p.loadFromData(raw)
-        ians[name] = QIcon(p)
-    if len(names) == 1:
-        ians = ians.pop(names[0])
-    return ians
+        for name in failed:
+            p = QPixmap()
+            raw = from_zfp.get(name)
+            if raw:
+                p.loadFromData(raw)
+            ans[name] = QIcon(p)
+    if len(namelist) == 1 and ans:
+        ans = ans.pop(namelist[0])
+    return ans
 
 
 _translations_cache = {}
@@ -107,13 +118,15 @@ def load_translations(namespace, zfp):
             _translations_cache[zfp] = None
             return
         with zipfile.ZipFile(zfp) as zf:
-            try:
-                mo = zf.read('translations/%s.mo' % lang)
-            except KeyError:
-                mo = None  # No translations for this language present
-        if mo is None:
-            _translations_cache[zfp] = None
-            return
+            mo_path = zipfile.Path(zf, f"translations/{lang}.mo")
+            if not mo_path.exists() and "_" in lang:
+                mo_path = zipfile.Path(zf, f"translations/{lang.split('_')[0]}.mo")
+            if mo_path.exists():
+                mo = mo_path.read_bytes()
+            else:
+                _translations_cache[zfp] = None
+                return
+
         from gettext import GNUTranslations
         from io import BytesIO
         trans = _translations_cache[zfp] = GNUTranslations(BytesIO(mo))
@@ -307,7 +320,7 @@ class CalibrePluginFinder:
             if ans.minimum_calibre_version > numeric_version:
                 raise InvalidPlugin(
                     'The plugin at %s needs a version of calibre >= %s' %
-                    (as_unicode(path_to_zip_file), '.'.join(map(unicode_type,
+                    (as_unicode(path_to_zip_file), '.'.join(map(str,
                         ans.minimum_calibre_version))))
 
             if platform not in ans.supported_platforms:
@@ -340,9 +353,9 @@ class CalibrePluginFinder:
                     break
         else:
             if self._identifier_pat.match(plugin_name) is None:
-                raise InvalidPlugin((
+                raise InvalidPlugin(
                     'The plugin at %r uses an invalid import name: %r' %
-                    (path_to_zip_file, plugin_name)))
+                    (path_to_zip_file, plugin_name))
 
         pynames = [x for x in names if x.endswith('.py')]
 

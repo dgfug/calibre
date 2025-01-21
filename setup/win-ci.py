@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 # License: GPLv3 Copyright: 2016, Kovid Goyal <kovid at kovidgoyal.net>
 
 
@@ -34,7 +33,7 @@ def download_file(url):
 def sw():
     sw = os.environ['SW']
     os.chdir(sw)
-    url = 'https://download.calibre-ebook.com/ci/calibre3/windows-64.tar.xz'
+    url = 'https://download.calibre-ebook.com/ci/calibre7/windows-64.tar.xz'
     tarball = download_file(url)
     with tarfile.open(fileobj=io.BytesIO(tarball)) as tf:
         tf.extractall()
@@ -85,6 +84,8 @@ def setup_env():
     os.environ['QMAKE'] = os.path.join(SW, r'qt\bin\qmake')
     os.environ['CALIBRE_QT_PREFIX'] = os.path.join(SW, r'qt')
     os.environ['CI'] = 'true'
+    os.environ['OPENSSL_MODULES'] = os.path.join(SW, 'lib', 'ossl-modules')
+    os.environ['PIPER_TTS_DIR'] = os.path.join(SW, 'piper')
 
 
 def main():

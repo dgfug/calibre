@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 
 
 __license__ = 'GPL v3'
@@ -8,11 +7,13 @@ __copyright__ = '2013, Kovid Goyal <kovid at kovidgoyal.net>'
 import numbers
 from functools import wraps
 
+from css_parser import CSSParser
+from css_parser import profile as cssprofiles
 from css_parser.css import PropertyValue
-from css_parser import profile as cssprofiles, CSSParser
 from tinycss.fonts3 import parse_font, serialize_font_family
+
 from calibre.ebooks.oeb.base import css_text
-from polyglot.builtins import iteritems, string_or_bytes, unicode_type, zip
+from polyglot.builtins import iteritems, string_or_bytes
 
 DEFAULTS = {'azimuth': 'center', 'background-attachment': 'scroll',  # {{{
             'background-color': 'transparent', 'background-image': 'none',
@@ -43,7 +44,7 @@ DEFAULTS = {'azimuth': 'center', 'background-attachment': 'scroll',  # {{{
             'page-break-after': 'auto', 'page-break-before': 'auto',
             'page-break-inside': 'auto', 'pause-after': 0, 'pause-before': 0,
             'pitch': 'medium', 'pitch-range': '50', 'play-during': 'auto',
-            'position': 'static', 'quotes': u"'“' '”' '‘' '’'", 'richness':
+            'position': 'static', 'quotes': "'“' '”' '‘' '’'", 'richness':
             '50', 'right': 'auto', 'speak': 'normal', 'speak-header': 'once',
             'speak-numeral': 'continuous', 'speak-punctuation': 'none',
             'speech-rate': 'medium', 'stress': '50', 'table-layout': 'auto',
@@ -79,10 +80,10 @@ def normalize_edge(name, cssvalue):
     if '-' in name:
         l, _, r = name.partition('-')
         for edge, value in zip(EDGES, values):
-            style['%s-%s-%s' % (l, edge, r)] = value
+            style[f'{l}-{edge}-{r}'] = value
     else:
         for edge, value in zip(EDGES, values):
-            style['%s-%s' % (name, edge)] = value
+            style[f'{name}-{edge}'] = value
     return style
 
 
@@ -181,7 +182,7 @@ def normalize_filter_css(props):
         n = normalizers.get(prop, None)
         ans.add(prop)
         if n is not None and prop in SHORTHAND_DEFAULTS:
-            dec = p.parseStyle('%s: %s' % (prop, SHORTHAND_DEFAULTS[prop]))
+            dec = p.parseStyle(f'{prop}: {SHORTHAND_DEFAULTS[prop]}')
             cssvalue = dec.getPropertyCSSValue(dec.item(0))
             ans |= set(n(prop, cssvalue))
     return ans
@@ -227,7 +228,7 @@ def condense_border(style, props):
         name = 'border-%s' % edge
         vals = []
         for prop in BORDER_PROPS:
-            x = prop_map.get('%s-%s' % (name, prop), None)
+            x = prop_map.get(f'{name}-{prop}', None)
             if x is not None:
                 vals.append(x)
         if len(vals) == 3:
@@ -267,8 +268,9 @@ def condense_sheet(sheet):
 
 def test_normalization(return_tests=False):  # {{{
     import unittest
-    from css_parser import parseStyle
     from itertools import product
+
+    from css_parser import parseStyle
 
     class TestNormalization(unittest.TestCase):
         longMessage = True
@@ -298,9 +300,9 @@ def test_normalization(return_tests=False):  # {{{
 
         def test_border_normalization(self):
             def border_edge_dict(expected, edge='right'):
-                ans = {'border-%s-%s' % (edge, x): DEFAULTS['border-%s-%s' % (edge, x)] for x in ('style', 'width', 'color')}
+                ans = {f'border-{edge}-{x}': DEFAULTS[f'border-{edge}-{x}'] for x in ('style', 'width', 'color')}
                 for x, v in iteritems(expected):
-                    ans['border-%s-%s' % (edge, x)] = v
+                    ans[f'border-{edge}-{x}'] = v
                 return ans
 
             def border_dict(expected):
@@ -310,9 +312,9 @@ def test_normalization(return_tests=False):  # {{{
                 return ans
 
             def border_val_dict(expected, val='color'):
-                ans = {'border-%s-%s' % (edge, val): DEFAULTS['border-%s-%s' % (edge, val)] for edge in EDGES}
+                ans = {f'border-{edge}-{val}': DEFAULTS[f'border-{edge}-{val}'] for edge in EDGES}
                 for edge in EDGES:
-                    ans['border-%s-%s' % (edge, val)] = expected
+                    ans[f'border-{edge}-{val}'] = expected
                 return ans
 
             for raw, expected in iteritems({
@@ -322,7 +324,7 @@ def test_normalization(return_tests=False):  # {{{
             }):
                 for edge in EDGES:
                     br = 'border-%s' % edge
-                    val = tuple(parseStyle('%s: %s' % (br, raw), validate=False))[0].propertyValue
+                    val = tuple(parseStyle(f'{br}: {raw}', validate=False))[0].propertyValue
                     self.assertDictEqual(border_edge_dict(expected, edge), normalizers[br](br, val))
 
             for raw, expected in iteritems({
@@ -330,18 +332,18 @@ def test_normalization(return_tests=False):  # {{{
                 '1px': {'width': '1px'}, '#aaa': {'color': '#aaa'},
                 'thin groove': {'width':'thin', 'style':'groove'},
             }):
-                val = tuple(parseStyle('%s: %s' % ('border', raw), validate=False))[0].propertyValue
+                val = tuple(parseStyle('{}: {}'.format('border', raw), validate=False))[0].propertyValue
                 self.assertDictEqual(border_dict(expected), normalizers['border']('border', val))
 
             for name, val in iteritems({
                 'width': '10%', 'color': 'rgb(0, 1, 1)', 'style': 'double',
             }):
-                cval = tuple(parseStyle('border-%s: %s' % (name, val), validate=False))[0].propertyValue
+                cval = tuple(parseStyle(f'border-{name}: {val}', validate=False))[0].propertyValue
                 self.assertDictEqual(border_val_dict(val, name), normalizers['border-'+name]('border-'+name, cval))
 
         def test_edge_normalization(self):
             def edge_dict(prefix, expected):
-                return {'%s-%s' % (prefix, edge) : x for edge, x in zip(EDGES, expected)}
+                return {f'{prefix}-{edge}' : x for edge, x in zip(EDGES, expected)}
             for raw, expected in iteritems({
                 '2px': ('2px', '2px', '2px', '2px'),
                 '1em 2em': ('1em', '2em', '1em', '2em'),
@@ -349,7 +351,7 @@ def test_normalization(return_tests=False):  # {{{
                 '1 2 3 4': ('1', '2', '3', '4'),
             }):
                 for prefix in ('margin', 'padding'):
-                    cval = tuple(parseStyle('%s: %s' % (prefix, raw), validate=False))[0].propertyValue
+                    cval = tuple(parseStyle(f'{prefix}: {raw}', validate=False))[0].propertyValue
                     self.assertDictEqual(edge_dict(prefix, expected), normalizers[prefix](prefix, cval))
 
         def test_list_style_normalization(self):
@@ -371,13 +373,13 @@ def test_normalization(return_tests=False):  # {{{
             ae({'font'} | set(font_composition), normalize_filter_css({'font'}))
             for p in ('margin', 'padding'):
                 ae({p} | {p + '-' + x for x in EDGES}, normalize_filter_css({p}))
-            bvals = {'border-%s-%s' % (edge, x) for edge in EDGES for x in BORDER_PROPS}
+            bvals = {f'border-{edge}-{x}' for edge in EDGES for x in BORDER_PROPS}
             ae(bvals | {'border'}, normalize_filter_css({'border'}))
             for x in BORDER_PROPS:
-                sbvals = {'border-%s-%s' % (e, x) for e in EDGES}
+                sbvals = {f'border-{e}-{x}' for e in EDGES}
                 ae(sbvals | {'border-%s' % x}, normalize_filter_css({'border-%s' % x}))
             for e in EDGES:
-                sbvals = {'border-%s-%s' % (e, x) for x in BORDER_PROPS}
+                sbvals = {f'border-{e}-{x}' for x in BORDER_PROPS}
                 ae(sbvals | {'border-%s' % e}, normalize_filter_css({'border-%s' % e}))
             ae({'list-style', 'list-style-image', 'list-style-type', 'list-style-position'}, normalize_filter_css({'list-style'}))
 
@@ -393,32 +395,32 @@ def test_normalization(return_tests=False):  # {{{
                 tuple('0 0 0 0'.split()) : '0',
             }):
                 for prefix in ('margin', 'padding'):
-                    css = {'%s-%s' % (prefix, x) : unicode_type(y)+'pt' if isinstance(y, numbers.Number) else y
+                    css = {f'{prefix}-{x}' : str(y)+'pt' if isinstance(y, numbers.Number) else y
                             for x, y in zip(('left', 'top', 'right', 'bottom'), s)}
-                    css = '; '.join(('%s:%s' % (k, v) for k, v in iteritems(css)))
+                    css = '; '.join((f'{k}:{v}' for k, v in iteritems(css)))
                     style = parseStyle(css)
                     condense_rule(style)
                     val = getattr(style.getProperty(prefix), 'value', None)
                     self.assertEqual(v, val)
                     if val is not None:
                         for edge in EDGES:
-                            self.assertFalse(getattr(style.getProperty('%s-%s' % (prefix, edge)), 'value', None))
+                            self.assertFalse(getattr(style.getProperty(f'{prefix}-{edge}'), 'value', None))
 
         def test_border_condensation(self):
             vals = 'red solid 5px'
-            css = '; '.join('border-%s-%s: %s' % (edge, p, v) for edge in EDGES for p, v in zip(BORDER_PROPS, vals.split()))
+            css = '; '.join(f'border-{edge}-{p}: {v}' for edge in EDGES for p, v in zip(BORDER_PROPS, vals.split()))
             style = parseStyle(css)
             condense_rule(style)
             for e, p in product(EDGES, BORDER_PROPS):
-                self.assertFalse(style.getProperty('border-%s-%s' % (e, p)))
+                self.assertFalse(style.getProperty(f'border-{e}-{p}'))
                 self.assertFalse(style.getProperty('border-%s' % e))
                 self.assertFalse(style.getProperty('border-%s' % p))
             self.assertEqual(style.getProperty('border').value, vals)
-            css = '; '.join('border-%s-%s: %s' % (edge, p, v) for edge in ('top',) for p, v in zip(BORDER_PROPS, vals.split()))
+            css = '; '.join(f'border-{edge}-{p}: {v}' for edge in ('top',) for p, v in zip(BORDER_PROPS, vals.split()))
             style = parseStyle(css)
             condense_rule(style)
-            self.assertEqual(css_text(style), 'border-top: %s' % vals)
-            css += ';' + '; '.join('border-%s-%s: %s' % (edge, p, v) for edge in ('right', 'left', 'bottom') for p, v in
+            self.assertEqual(css_text(style).rstrip(';'), 'border-top: %s' % vals)
+            css += ';' + '; '.join(f'border-{edge}-{p}: {v}' for edge in ('right', 'left', 'bottom') for p, v in
                              zip(BORDER_PROPS, vals.replace('red', 'green').split()))
             style = parseStyle(css)
             condense_rule(style)

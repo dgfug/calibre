@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-
 __license__   = 'GPL v3'
 __copyright__ = '2009, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
@@ -55,13 +52,21 @@ class EB600(USBMS):
 class TOLINO(EB600):
 
     name = 'Tolino Shine Device Interface'
-    gui_name = 'tolino shine'
-    description    = _('Communicate with the tolino shine and vision readers')
+    gui_name = 'Tolino Shine'
+    description    = _('Communicate with the Tolino Shine and Vision readers')
     FORMATS = ['epub', 'pdf', 'txt']
-    PRODUCT_ID  = EB600.PRODUCT_ID + [0x6033, 0x6052, 0x6053]
+
+    EPOS_PRODUCT_ID         = [0x6053]
+    VISION6_PRODUCT_ID      = [0x8000]
+    OTHER_TOLINO_PRODUCT_ID = [0x6033, 0x6052]
+    PRODUCT_ID = EB600.PRODUCT_ID + OTHER_TOLINO_PRODUCT_ID + EPOS_PRODUCT_ID + VISION6_PRODUCT_ID
+
+    KOBO_VENDOR_ID = [0x4173]   # Some newer Tolino devices have the Kobo Vendor ID. But, they still use different software.
+    VENDOR_ID   = EB600.VENDOR_ID + KOBO_VENDOR_ID
     BCD         = [0x226, 0x9999]
     VENDOR_NAME      = ['DEUTSCHE', 'LINUX']
     WINDOWS_MAIN_MEM = WINDOWS_CARD_A_MEM = ['_TELEKOMTOLINO', 'FILE-CD_GADGET']
+    EBOOK_DIR_MAIN = ''
 
     EXTRA_CUSTOMIZATION_MESSAGE = [
         _('Swap main and card A') +
@@ -75,6 +80,10 @@ class TOLINO(EB600):
     ]
 
     OPT_SWAP_MEMORY = 0
+
+    def get_device_information(self, end_session=True):
+        self.set_device_name()
+        return super().get_device_information(end_session)
 
     # There are apparently two versions of this device, one with swapped
     # drives and one without, see https://bugs.launchpad.net/bugs/1240504
@@ -122,6 +131,21 @@ class TOLINO(EB600):
         if for_upload:
             return getattr(self, 'ebook_dir_for_upload', self.EBOOK_DIR_MAIN)
         return self.EBOOK_DIR_MAIN
+
+    def isEpos(self):
+        return self.detected_device.idProduct in self.EPOS_PRODUCT_ID
+
+    def isVision6(self):
+        return self.detected_device.idProduct in self.VISION6_PRODUCT_ID
+
+    def set_device_name(self):
+        device_name = self.gui_name
+        if self.isEpos():
+            device_name = 'tolino epos'
+        elif self.isVision6():
+            device_name = 'tolino vision 6'
+        self.__class__.gui_name = device_name
+        return device_name
 
 
 class COOL_ER(EB600):
@@ -172,10 +196,10 @@ class POCKETBOOK360(EB600):
     FORMATS = ['epub', 'fb2', 'prc', 'mobi', 'pdf', 'djvu', 'rtf', 'chm', 'txt']
 
     VENDOR_NAME = ['PHILIPS', '__POCKET', 'POCKETBO']
-    WINDOWS_MAIN_MEM = WINDOWS_CARD_A_MEM = ['MASS_STORGE', 'BOOK_USB_STORAGE',
+    WINDOWS_MAIN_MEM = WINDOWS_CARD_A_MEM = ['MASS_STORAGE', 'BOOK_USB_STORAGE',
             'OK_POCKET_611_61', 'OK_POCKET_360+61']
 
-    OSX_MAIN_MEM = OSX_CARD_A_MEM = 'Philips Mass Storge Media'
+    OSX_MAIN_MEM = OSX_CARD_A_MEM = 'Philips Mass Storage Media'
     OSX_MAIN_MEM_VOL_PAT = re.compile(r'/Pocket')
 
     @classmethod
@@ -212,7 +236,7 @@ class ITALICA(EB600):
 
     name = 'Italica Device Interface'
     gui_name = 'Italica'
-    icon = I('devices/italica.png')
+    icon = 'devices/italica.png'
 
     FORMATS = ['epub', 'rtf', 'fb2', 'html', 'prc', 'mobi', 'pdf', 'txt']
 
@@ -403,7 +427,7 @@ class POCKETBOOK701(USBMS):
 
 class POCKETBOOK740(USBMS):
 
-    name = 'PocketBook 701 Device Interface'
+    name = 'PocketBook 740 Device Interface'
     gui_name = 'PocketBook'
     description = _('Communicate with the PocketBook 740')
     supported_platforms = ['windows', 'osx', 'linux']

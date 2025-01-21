@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 __license__   = 'GPL v3'
@@ -9,11 +8,13 @@ __docformat__ = 'restructuredtext en'
 import hashlib
 from collections import OrderedDict, namedtuple
 from functools import partial
+
 from html5_parser import parse
 from lxml import etree
 from lxml.builder import ElementMaker
 
-from calibre import force_unicode, guess_type, prepare_string_for_xml as xml
+from calibre import force_unicode, guess_type
+from calibre import prepare_string_for_xml as xml
 from calibre.constants import __appname__
 from calibre.db.view import sanitize_sort_field_name
 from calibre.ebooks.metadata import authors_to_string, fmt_sidx, rating_to_stars
@@ -25,10 +26,11 @@ from calibre.srv.utils import Offsets, get_library_data, http_date
 from calibre.utils.config import prefs
 from calibre.utils.date import as_utc, is_date_undefined, timestampfromdt
 from calibre.utils.icu import sort_key
+from calibre.utils.localization import _, ngettext
 from calibre.utils.search_query_parser import ParseException
 from calibre.utils.xml_parse import safe_xml_fromstring
 from polyglot.binary import as_hex_unicode, from_hex_unicode
-from polyglot.builtins import as_bytes, filter, iteritems, unicode_type
+from polyglot.builtins import as_bytes, iteritems
 from polyglot.urllib import unquote_plus, urlencode
 
 
@@ -37,7 +39,7 @@ def atom(ctx, rd, endpoint, output):
     rd.outheaders.set('Calibre-Instance-Id', force_unicode(prefs['installation_uuid'], 'utf-8'), replace_all=True)
     if isinstance(output, bytes):
         ans = output  # Assume output is already UTF-8 XML
-    elif isinstance(output, unicode_type):
+    elif isinstance(output, str):
         ans = output.encode('utf-8')
     else:
         ans = etree.tostring(output, encoding='utf-8', xml_declaration=True, pretty_print=True)
@@ -120,7 +122,7 @@ def html_to_lxml(raw):
     root = parse(raw, keep_doctype=False, namespace_elements=False, maybe_xhtml=False, sanitize_names=True)
     root = next(root.iterdescendants('div'))
     root.set('xmlns', "http://www.w3.org/1999/xhtml")
-    raw = etree.tostring(root, encoding=None)
+    raw = etree.tostring(root, encoding='unicode')
     try:
         return safe_xml_fromstring(raw, recover=False)
     except:
@@ -131,7 +133,7 @@ def html_to_lxml(raw):
                     remove.append(attr)
             for a in remove:
                 del x.attrib[a]
-        raw = etree.tostring(root, encoding=None)
+        raw = etree.tostring(root, encoding='unicode')
         try:
             return safe_xml_fromstring(raw, recover=False)
         except:
@@ -144,7 +146,7 @@ def CATALOG_ENTRY(item, item_kind, request_context, updated, catalog_name,
     id_ = 'calibre:category:'+item.name
     iid = 'N' + item.name
     if item.id is not None:
-        iid = 'I' + unicode_type(item.id)
+        iid = 'I' + str(item.id)
         iid += ':'+item_kind
     href = request_context.url_for('/opds/category', category=as_hex_unicode(catalog_name), which=as_hex_unicode(iid))
     link = NAVLINK(href=href)
@@ -203,9 +205,9 @@ def ACQUISITION_ENTRY(book_id, updated, request_context):
                                     fm['is_multiple']['ui_to_list'],
                                     joinval=fm['is_multiple']['list_to_ui']))))
             elif datatype == 'comments' or (fm['datatype'] == 'composite' and fm['display'].get('contains_html', False)):
-                extra.append('%s: %s<br />'%(xml(name), comments_to_html(unicode_type(val))))
+                extra.append('%s: %s<br />'%(xml(name), comments_to_html(str(val))))
             else:
-                extra.append('%s: %s<br />'%(xml(name), xml(unicode_type(val))))
+                extra.append('%s: %s<br />'%(xml(name), xml(str(val))))
     if mi.comments:
         comments = comments_to_html(mi.comments)
         extra.append(comments)
@@ -228,7 +230,7 @@ def ACQUISITION_ENTRY(book_id, updated, request_context):
                 link = E.link(type=mt, href=get(what=fmt), rel="http://opds-spec.org/acquisition")
                 ffm = fm.get(fmt.upper())
                 if ffm:
-                    link.set('length', unicode_type(ffm['size']))
+                    link.set('length', str(ffm['size']))
                     link.set('mtime', ffm['mtime'].isoformat())
                 ans.append(link)
     ans.append(E.link(type='image/jpeg', href=get(what='cover'), rel="http://opds-spec.org/cover"))
@@ -571,7 +573,7 @@ def opds_category(ctx, rd, category, which):
     ids = rc.db.get_books_for_category(q, which) & rc.allowed_book_ids()
     sort_by = 'series' if category == 'series' else 'title'
 
-    return get_acquisition_feed(rc, ids, offset, page_url, up_url, 'calibre-category:'+category+':'+unicode_type(which), sort_by=sort_by)
+    return get_acquisition_feed(rc, ids, offset, page_url, up_url, 'calibre-category:'+category+':'+str(which), sort_by=sort_by)
 
 
 @endpoint('/opds/categorygroup/{category}/{which}', postprocess=atom)

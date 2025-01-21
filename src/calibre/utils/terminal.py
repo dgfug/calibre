@@ -1,15 +1,16 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:fdm=marker:ai
 
 __license__   = 'GPL v3'
 __copyright__ = '2012, Kovid Goyal <kovid at kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import os, sys, re
+import os
+import re
+import sys
 
-from calibre.prints import is_binary
 from calibre.constants import iswindows
-from polyglot.builtins import iteritems, range, zip
+from calibre.prints import is_binary
+from polyglot.builtins import iteritems
 
 if iswindows:
     import ctypes.wintypes
@@ -156,7 +157,7 @@ class ANSIStream(Detect):
     ANSI_RE = r'\033\[((?:\d|;)*)([a-zA-Z])'
 
     def __init__(self, stream=None):
-        super(ANSIStream, self).__init__(stream)
+        super().__init__(stream)
         self.encoding = getattr(self.stream, 'encoding', None) or 'utf-8'
         self._ansi_re_bin = self._ansi_re_unicode = None
 
@@ -234,7 +235,9 @@ def windows_terminfo():
 
 
 def get_term_geometry():
-    import fcntl, termios, struct
+    import fcntl
+    import struct
+    import termios
 
     def ioctl_GWINSZ(fd):
         try:

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 
 
 __license__ = 'GPL v3'
@@ -13,6 +12,7 @@ from lxml import html
 from calibre import browser
 from calibre.ebooks.oeb.polish.container import OEB_DOCS
 from calibre.ebooks.oeb.polish.utils import guess_type
+from calibre.utils.resources import get_path as P
 
 
 class URLMap:
@@ -26,7 +26,7 @@ class URLMap:
         except KeyError:
             try:
                 self.cache[key] = ans = json.loads(P('editor-help/%s.json' % key, data=True))
-            except EnvironmentError:
+            except OSError:
                 raise KeyError('The mapping %s is not available' % key)
             return ans
 

@@ -9,16 +9,18 @@ __docformat__ = 'restructuredtext en'
 
 import random
 import re
+
 try:
     from urllib.parse import quote
 except ImportError:
     from urllib import quote
 
 from contextlib import closing
+
 from lxml import etree
 from qt.core import QUrl
 
-from calibre import browser, url_slash_cleaner, prints
+from calibre import browser, prints, url_slash_cleaner
 from calibre.ebooks.chardet import xml_to_unicode
 from calibre.gui2 import open_url
 from calibre.gui2.store import StorePlugin
@@ -48,7 +50,7 @@ class LitResStore(BasicStoreConfig, StorePlugin):
             d = WebStoreDialog(self.gui, url, parent, detail_url)
             d.setWindowTitle(self.name)
             d.set_tags(self.config.get('tags', ''))
-            d.exec_()
+            d.exec()
 
     def search(self, query, max_results=10, timeout=60):
         search_url = u'http://robot.litres.ru/pages/catalit_browser/?checkpoint=2000-01-02&'\

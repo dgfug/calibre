@@ -1,13 +1,15 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 __license__   = 'GPL v3'
 __copyright__ = '2012, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import os, re, sys
-from calibre.constants import iswindows, cache_dir, get_version
+import os
+import re
+import sys
+
+from calibre.constants import cache_dir, get_version, iswindows
 from polyglot.builtins import exec_path
 
 ipydir = os.path.join(cache_dir(), 'ipython')
@@ -18,7 +20,7 @@ BANNER = ('Welcome to the interactive calibre shell!\n')
 def setup_pyreadline():
     config = '''
 #Bind keys for exit (keys only work on empty lines
-#disable_readline(True)		#Disable pyreadline completely.
+#disable_readline(True)         #Disable pyreadline completely.
 debug_output("off")             #"on" saves log info to./pyreadline_debug_log.txt
                                 #"on_nologfile" only enables print warning messages
 bind_exit_key("Control-d")
@@ -116,7 +118,9 @@ history_length(2000) #value of -1 means no limit
         with open(conf, 'wb') as f:
             f.write(config.encode('utf-8'))
         pyreadline.rlmain.config_path = conf
-        import readline, atexit
+        import atexit
+        import readline
+
         import pyreadline.unicode_helper  # noqa
         # Normally the codepage for pyreadline is set to be sys.stdout.encoding
         # if you need to change this uncomment the following line
@@ -190,8 +194,8 @@ def ipython(user_ns=None):
     have_ipython = True
     try:
         from IPython.terminal.embed import InteractiveShellEmbed
-        from traitlets.config.loader import Config
         from IPython.terminal.prompts import Prompts, Token
+        from traitlets.config.loader import Config
     except ImportError:
         have_ipython = False
     if not have_ipython:

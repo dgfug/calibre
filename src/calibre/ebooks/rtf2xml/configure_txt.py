@@ -1,5 +1,6 @@
+import os
+import sys
 
-import os, sys
 from . import open_for_read
 
 

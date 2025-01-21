@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-
 __license__ = 'GPL 3'
 __copyright__ = '2009, John Schember <john@nachtimwald.com>'
 __docformat__ = 'restructuredtext en'
@@ -9,19 +6,21 @@ __docformat__ = 'restructuredtext en'
 Transform OEB content into FB2 markup
 '''
 
-import re, textwrap, uuid
+import re
+import textwrap
+import uuid
 from datetime import datetime
 
 from lxml import etree
 
 from calibre import prepare_string_for_xml
 from calibre.constants import __appname__, __version__
+from calibre.ebooks.oeb.base import urlnormalize
+from calibre.utils.img import save_cover_data_to
 from calibre.utils.localization import lang_as_iso639_1
 from calibre.utils.xml_parse import safe_xml_fromstring
-from calibre.utils.img import save_cover_data_to
-from calibre.ebooks.oeb.base import urlnormalize
-from polyglot.builtins import unicode_type, string_or_bytes, range, filter
 from polyglot.binary import as_base64_unicode
+from polyglot.builtins import string_or_bytes
 from polyglot.urllib import urlparse
 
 
@@ -124,7 +123,7 @@ class FB2MLizer:
                 lc = self.oeb_book.metadata.language[0].value
             metadata['lang'] = lc or 'en'
         else:
-            metadata['lang'] = u'en'
+            metadata['lang'] = 'en'
         metadata['id'] = None
         metadata['cover'] = self.get_cover()
         metadata['genre'] = self.opts.fb2_genre
@@ -154,7 +153,7 @@ class FB2MLizer:
             metadata['author'] = '<author><first-name></first-name><last-name></last-name></author>'
 
         metadata['keywords'] = ''
-        tags = list(map(unicode_type, self.oeb_book.metadata.subject))
+        tags = list(map(str, self.oeb_book.metadata.subject))
         if tags:
             tags = ', '.join(prepare_string_for_xml(x) for x in tags)
             metadata['keywords'] = '<keywords>%s</keywords>'%tags
@@ -164,17 +163,17 @@ class FB2MLizer:
             index = '1'
             if self.oeb_book.metadata.series_index:
                 index = self.oeb_book.metadata.series_index[0]
-            metadata['sequence'] = '<sequence name="%s" number="%s"/>' % (prepare_string_for_xml('%s' % self.oeb_book.metadata.series[0]), index)
+            metadata['sequence'] = '<sequence name="{}" number="{}"/>'.format(prepare_string_for_xml('%s' % self.oeb_book.metadata.series[0]), index)
 
         year = publisher = isbn = ''
         identifiers = self.oeb_book.metadata['identifier']
         for x in identifiers:
-            if x.get(OPF('scheme'), None).lower() == 'uuid' or unicode_type(x).startswith('urn:uuid:'):
-                metadata['id'] = unicode_type(x).split(':')[-1]
+            if x.get(OPF('scheme'), None).lower() == 'uuid' or str(x).startswith('urn:uuid:'):
+                metadata['id'] = str(x).split(':')[-1]
                 break
         if metadata['id'] is None:
             self.log.warn('No UUID identifier found')
-            metadata['id'] = unicode_type(uuid.uuid4())
+            metadata['id'] = str(uuid.uuid4())
 
         try:
             date = self.oeb_book.metadata['date'][0]
@@ -205,7 +204,7 @@ class FB2MLizer:
             metadata['comments'] = ''
         else:
             from calibre.utils.html2text import html2text
-            metadata['comments'] = '<annotation><p>{}</p></annotation>'.format(prepare_string_for_xml(html2text(comments.value).strip()))
+            metadata['comments'] = f'<annotation><p>{prepare_string_for_xml(html2text(comments.value).strip())}</p></annotation>'
 
         # Keep the indentation level of the description the same as the body.
         header = textwrap.dedent('''\
@@ -236,7 +235,7 @@ class FB2MLizer:
             </description>''') % metadata
 
         # Remove empty lines.
-        return '\n'.join(filter(unicode_type.strip, header.splitlines()))
+        return '\n'.join(filter(str.strip, header.splitlines()))
 
     def fb2_footer(self):
         return '</FictionBook>'
@@ -247,8 +246,8 @@ class FB2MLizer:
         cover_href = None
 
         # Get the raster cover if it's available.
-        if self.oeb_book.metadata.cover and unicode_type(self.oeb_book.metadata.cover[0]) in self.oeb_book.manifest.ids:
-            id = unicode_type(self.oeb_book.metadata.cover[0])
+        if self.oeb_book.metadata.cover and str(self.oeb_book.metadata.cover[0]) in self.oeb_book.manifest.ids:
+            id = str(self.oeb_book.metadata.cover[0])
             cover_item = self.oeb_book.manifest.ids[id]
             if cover_item.media_type in OEB_RASTER_IMAGES:
                 cover_href = cover_item.href
@@ -333,7 +332,7 @@ class FB2MLizer:
                     # Don't put the encoded image on a single line.
                     step = 72
                     data = '\n'.join(raw_data[i:i+step] for i in range(0, len(raw_data), step))
-                    images.append('<binary id="%s" content-type="%s">%s</binary>' % (self.image_hrefs[item.href], content_type, data))
+                    images.append(f'<binary id="{self.image_hrefs[item.href]}" content-type="{content_type}">{data}</binary>')
                 except Exception as e:
                     self.log.error('Error: Could not include file %s because '
                         '%s.' % (item.href, e))
@@ -483,7 +482,7 @@ class FB2MLizer:
                 tags += p_tag
                 fb2_out.append('<image l:href="#%s"/>' % self.image_hrefs[ihref])
             else:
-                self.log.warn(u'Ignoring image not in manifest: %s' % ihref)
+                self.log.warn('Ignoring image not in manifest: %s' % ihref)
         if tag in ('br', 'hr') or ems >= 1:
             if ems < 1:
                 multiplier = 1

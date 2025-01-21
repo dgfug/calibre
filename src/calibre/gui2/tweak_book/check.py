@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 
 
 __license__ = 'GPL v3'
@@ -8,16 +7,25 @@ __copyright__ = '2013, Kovid Goyal <kovid at kovidgoyal.net>'
 import sys
 
 from qt.core import (
-     QIcon, Qt, QSplitter, QListWidget, QTextBrowser, QPalette, QMenu,
-     QListWidgetItem, pyqtSignal, QApplication, QStyledItemDelegate,
-     QAbstractItemView)
+    QAbstractItemView,
+    QApplication,
+    QIcon,
+    QListWidget,
+    QListWidgetItem,
+    QMenu,
+    QPalette,
+    QSplitter,
+    QStyledItemDelegate,
+    Qt,
+    QTextBrowser,
+    pyqtSignal,
+)
 
-from calibre.ebooks.oeb.polish.check.base import WARN, INFO, DEBUG, ERROR, CRITICAL
-from calibre.ebooks.oeb.polish.check.main import run_checks, fix_errors
+from calibre.ebooks.oeb.polish.check.base import CRITICAL, DEBUG, ERROR, INFO, WARN
+from calibre.ebooks.oeb.polish.check.main import fix_errors, run_checks
 from calibre.gui2 import NO_URL_FORMATTING, safe_open_url
 from calibre.gui2.tweak_book import tprefs
-from calibre.gui2.tweak_book.widgets import BusyCursor
-from polyglot.builtins import unicode_type, range
+from calibre.gui2.widgets import BusyCursor
 
 
 def icon_for_level(level):
@@ -29,7 +37,7 @@ def icon_for_level(level):
         icon = 'dialog_information.png'
     else:
         icon = None
-    return QIcon(I(icon)) if icon else QIcon()
+    return QIcon.ic(icon) if icon else QIcon()
 
 
 def prefix_for_level(level):
@@ -45,11 +53,19 @@ def prefix_for_level(level):
         text += ': '
     return text
 
+def build_error_message(error, with_level=False, with_line_numbers=False):
+    prefix = ''
+    filename = error.name
+    if with_level:
+        prefix = prefix_for_level(error.level)
+    if with_line_numbers and error.line:
+        filename = f'{filename}:{error.line}'
+    return f'{prefix}{error.msg}\xa0\xa0\xa0\xa0[{filename}]'
 
 class Delegate(QStyledItemDelegate):
 
     def initStyleOption(self, option, index):
-        super(Delegate, self).initStyleOption(option, index)
+        super().initStyleOption(option, index)
         if index.row() == self.parent().currentRow():
             option.font.setBold(True)
             option.backgroundBrush = self.parent().palette().brush(QPalette.ColorRole.AlternateBase)
@@ -94,15 +110,15 @@ class Check(QSplitter):
     def context_menu(self, pos):
         m = QMenu(self)
         if self.items.count() > 0:
-            m.addAction(QIcon(I('edit-copy.png')), _('Copy list of errors to clipboard'), self.copy_to_clipboard)
+            m.addAction(QIcon.ic('edit-copy.png'), _('Copy list of errors to clipboard'), self.copy_to_clipboard)
         if list(m.actions()):
-            m.exec_(self.mapToGlobal(pos))
+            m.exec(self.mapToGlobal(pos))
 
     def copy_to_clipboard(self):
         items = []
         for item in (self.items.item(i) for i in range(self.items.count())):
-            msg = unicode_type(item.text())
-            msg = prefix_for_level(item.data(Qt.ItemDataRole.UserRole).level) + msg
+            err = item.data(Qt.ItemDataRole.UserRole)
+            msg = build_error_message(err, with_level=True, with_line_numbers=True)
             items.append(msg)
         if items:
             QApplication.clipboard().setText('\n'.join(items))
@@ -113,11 +129,11 @@ class Check(QSplitter):
     def clear_help(self, msg=None):
         if msg is None:
             msg = _('No problems found')
-        self.help.setText('<h2>%s</h2><p><a style="text-decoration:none" title="%s" href="run:check">%s</a></p>' % (
+        self.help.setText('<h2>{}</h2><p><a style="text-decoration:none" title="{}" href="run:check">{}</a></p>'.format(
             msg, _('Click to run a check on the book'), _('Run check')))
 
     def link_clicked(self, url):
-        url = unicode_type(url.toString(NO_URL_FORMATTING))
+        url = str(url.toString(NO_URL_FORMATTING))
         if url == 'activate:item':
             self.current_item_activated()
         elif url == 'run:check':
@@ -201,7 +217,7 @@ class Check(QSplitter):
                 activate = activate.replace('%', '%%')
                 template = header + ((msg + activate) if many else (activate + msg)) + footer
             else:
-                activate = '<div><a href="activate:item" title="%s">%s %s</a></div>' % (
+                activate = '<div><a href="activate:item" title="{}">{} {}</a></div>'.format(
                        open_tt, err.name, loc)
                 activate = activate.replace('%', '%%')
                 template = header + activate + msg + footer
@@ -216,7 +232,7 @@ class Check(QSplitter):
             self.hide_busy()
 
         for err in sorted(errors, key=lambda e:(100 - e.level, e.name)):
-            i = QListWidgetItem('%s\xa0\xa0\xa0\xa0[%s]' % (err.msg, err.name), self.items)
+            i = QListWidgetItem(build_error_message(err), self.items)
             i.setData(Qt.ItemDataRole.UserRole, err)
             i.setIcon(icon_for_level(err.level))
         if errors:
@@ -245,7 +261,7 @@ class Check(QSplitter):
     def keyPressEvent(self, ev):
         if ev.key() in (Qt.Key.Key_Enter, Qt.Key.Key_Return):
             self.current_item_activated()
-        return super(Check, self).keyPressEvent(ev)
+        return super().keyPressEvent(ev)
 
     def clear(self):
         self.items.clear()
@@ -261,7 +277,7 @@ def main():
     d = Check()
     d.run_checks(container)
     d.show()
-    app.exec_()
+    app.exec()
 
 
 if __name__ == '__main__':

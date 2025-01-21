@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 __license__   = 'GPL v3'
@@ -12,9 +11,10 @@ import re
 import shutil
 import struct
 import textwrap
+
 from lxml import etree, html
 
-from calibre import entity_to_unicode, guess_type, xml_entity_to_unicode
+from calibre import guess_type, replace_entities, xml_replace_entities
 from calibre.ebooks import DRMError, unit_convert
 from calibre.ebooks.chardet import strip_encoding_declarations
 from calibre.ebooks.compression.palmdoc import decompress_doc
@@ -28,7 +28,7 @@ from calibre.utils.cleantext import clean_ascii_chars, clean_xml_chars
 from calibre.utils.img import AnimatedGIF, gif_data_to_png_data, save_cover_data_to
 from calibre.utils.imghdr import what
 from calibre.utils.logging import default_log
-from polyglot.builtins import iteritems, map, range, unicode_type
+from polyglot.builtins import iteritems
 
 
 class TopazError(ValueError):
@@ -181,8 +181,7 @@ class MobiReader:
                 self.processed_html)
 
         self.processed_html = strip_encoding_declarations(self.processed_html)
-        self.processed_html = re.sub(r'&(\S+?);', xml_entity_to_unicode,
-            self.processed_html)
+        self.processed_html = xml_replace_entities(self.processed_html)
         image_name_map = self.extract_images(processed_records, output_dir)
         self.replace_page_breaks()
         self.cleanup_html()
@@ -302,9 +301,9 @@ class MobiReader:
             pass
 
         def write_as_utf8(path, data):
-            if isinstance(data, unicode_type):
+            if isinstance(data, str):
                 data = data.encode('utf-8')
-            with lopen(path, 'wb') as f:
+            with open(path, 'wb') as f:
                 f.write(data)
 
         parse_cache[htmlfile] = root
@@ -312,7 +311,7 @@ class MobiReader:
         ncx = io.BytesIO()
         opf, ncx_manifest_entry = self.create_opf(htmlfile, guide, root)
         self.created_opf_path = os.path.splitext(htmlfile)[0] + '.opf'
-        opf.render(lopen(self.created_opf_path, 'wb'), ncx,
+        opf.render(open(self.created_opf_path, 'wb'), ncx,
             ncx_manifest_entry=ncx_manifest_entry)
         ncx = ncx.getvalue()
         if ncx:
@@ -321,7 +320,7 @@ class MobiReader:
 
         css = [self.base_css_rules, '\n\n']
         for cls, rule in self.tag_css_rules.items():
-            css.append('.%s { %s }\n\n' % (cls, rule))
+            css.append(f'.{cls} {{ {rule} }}\n\n')
         write_as_utf8('styles.css', ''.join(css))
 
         if self.book_header.exth is not None or self.embedded_mi is not None:
@@ -707,7 +706,6 @@ class MobiReader:
             ncx_manifest_entry = 'toc.ncx'
             elems = root.xpath('//*[@id="%s"]' % toc.partition('#')[-1])
             tocobj = None
-            ent_pat = re.compile(r'&(\S+?);')
             if elems:
                 tocobj = TOC()
                 found = False
@@ -724,7 +722,7 @@ class MobiReader:
                                     x.xpath('descendant::text()')])
                             except:
                                 text = ''
-                            text = ent_pat.sub(entity_to_unicode, text)
+                            text = replace_entities(text)
                             item = tocobj.add_item(toc.partition('#')[0], href[1:],
                                 text)
                             item.left_space = int(self.get_left_whitespace(x))
@@ -783,13 +781,17 @@ class MobiReader:
             if flags & 1:
                 try:
                     num += sizeof_trailing_entry(data, size - num)
-                except IndexError:
+                except (IndexError, TypeError):
                     self.warn_about_trailing_entry_corruption()
                     return 0
             flags >>= 1
         if self.book_header.extra_flags & 1:
             off = size - num - 1
-            num += (ord(data[off:off+1]) & 0x3) + 1
+            try:
+                num += (ord(data[off:off+1]) & 0x3) + 1
+            except TypeError:
+                self.log.warn('Invalid sizeof trailing entries')
+                num += 1
         return num
 
     def warn_about_trailing_entry_corruption(self):
@@ -824,7 +826,8 @@ class MobiReader:
             unpack = decompress_doc
 
         elif self.book_header.compression_type == b'\x00\x01':
-            unpack = lambda x: x
+            def unpack(x):
+                return x
         else:
             raise MobiError('Unknown compression algorithm: %r' % self.book_header.compression_type)
         self.mobi_html = b''.join(map(unpack, text_sections))
@@ -916,6 +919,9 @@ class MobiReader:
                     imgfmt = 'png'
                 except AnimatedGIF:
                     pass
+                except OSError:
+                    self.log.warn(f'Ignoring undecodeable GIF image at index {image_index}')
+                    continue
             path = os.path.join(output_dir, '%05d.%s' % (image_index, imgfmt))
             image_name_map[image_index] = os.path.basename(path)
             if imgfmt == 'png':

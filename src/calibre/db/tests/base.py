@@ -1,15 +1,21 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 __license__   = 'GPL v3'
 __copyright__ = '2011, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import unittest, os, shutil, tempfile, atexit, gc, time
+import atexit
+import gc
+import os
+import shutil
+import tempfile
+import time
+import unittest
 from functools import partial
 from io import BytesIO
-from polyglot.builtins import map, unicode_type
+
+from calibre.utils.resources import get_image_path as I
 
 rmtree = partial(shutil.rmtree, ignore_errors=True)
 
@@ -33,7 +39,7 @@ class BaseTest(unittest.TestCase):
         gc.collect(), gc.collect()
         try:
             shutil.rmtree(self.library_path)
-        except EnvironmentError:
+        except OSError:
             # Try again in case something transient has a file lock on windows
             gc.collect(), gc.collect()
             time.sleep(2)
@@ -82,7 +88,7 @@ class BaseTest(unittest.TestCase):
             atexit.register(rmtree, self.clone_dir)
             self.clone_count = 0
         self.clone_count += 1
-        dest = os.path.join(self.clone_dir, unicode_type(self.clone_count))
+        dest = os.path.join(self.clone_dir, str(self.clone_count))
         shutil.copytree(library_path, dest)
         return dest
 
@@ -96,7 +102,7 @@ class BaseTest(unittest.TestCase):
         self.assertEqual(allfk1, allfk2)
 
         all_keys = {'format_metadata', 'id', 'application_id',
-                    'author_sort_map', 'author_link_map', 'book_size',
+                    'author_sort_map', 'link_maps', 'book_size',
                     'ondevice_col', 'last_modified', 'has_cover',
                     'cover_data'}.union(allfk1)
         for attr in all_keys:

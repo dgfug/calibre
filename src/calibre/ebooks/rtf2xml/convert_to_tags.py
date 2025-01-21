@@ -1,8 +1,9 @@
+import os
+import sys
 
-import os, sys
-
-from calibre.ebooks.rtf2xml import copy, check_encoding
+from calibre.ebooks.rtf2xml import check_encoding, copy
 from calibre.ptempfile import better_mktemp
+
 from . import open_for_read, open_for_write
 
 public_dtd = 'rtf2xml1.0.dtd'
@@ -125,7 +126,7 @@ class ConvertToTags:
                 att = att.replace('"', '&quot;')
                 att = att.replace("'", '&quot;')
                 self.__write_obj.write(
-                ' %s="%s"' % (val, att)
+                f' {val}="{att}"'
                 )
             except:
                 if self.__run_level > 3:
@@ -155,7 +156,7 @@ class ConvertToTags:
             att = att.replace('"', '&quot;')
             att = att.replace("'", '&quot;')
             self.__write_obj.write(
-            ' %s="%s"' % (val, att))
+            f' {val}="{att}"')
         self.__write_obj.write('/>')
         self.__new_line = 0
         if element_name in self.__block:

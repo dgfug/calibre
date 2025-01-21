@@ -1,24 +1,24 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 
 
 __license__ = 'GPL v3'
 __copyright__ = '2013, Kovid Goyal <kovid at kovidgoyal.net>'
 
-import textwrap, os
+import os
+import textwrap
 
 from lxml import etree
 from lxml.builder import ElementMaker
 
 from calibre import guess_type
-from calibre.constants import numeric_version, __appname__
+from calibre.constants import __appname__, numeric_version
 from calibre.ebooks.docx.names import DOCXNamespace
 from calibre.ebooks.metadata import authors_to_string
 from calibre.ebooks.pdf.render.common import PAPER_SIZES
 from calibre.utils.date import utcnow
 from calibre.utils.localization import canonicalize_lang, lang_as_iso639_1
 from calibre.utils.zipfile import ZipFile
-from polyglot.builtins import iteritems, map, unicode_type, native_string_type
+from polyglot.builtins import iteritems, native_string_type
 
 
 def xml2str(root, pretty_print=False, with_tail=False):
@@ -54,7 +54,7 @@ def create_skeleton(opts, namespaces=None):
     namespaces = namespaces or DOCXNamespace().namespaces
 
     def w(x):
-        return '{%s}%s' % (namespaces['w'], x)
+        return '{{{}}}{}'.format(namespaces['w'], x)
     dn = {k:v for k, v in iteritems(namespaces) if k in {'w', 'r', 'm', 've', 'o', 'wp', 'w10', 'wne', 'a', 'pic'}}
     E = ElementMaker(namespace=dn['w'], nsmap=dn)
     doc = E.document()
@@ -65,9 +65,9 @@ def create_skeleton(opts, namespaces=None):
 
     def margin(which):
         val = page_margin(opts, which)
-        return w(which), unicode_type(int(val * 20))
+        return w(which), str(int(val * 20))
     body.append(E.sectPr(
-        E.pgSz(**{w('w'):unicode_type(width), w('h'):unicode_type(height)}),
+        E.pgSz(**{w('w'):str(width), w('h'):str(height)}),
         E.pgMar(**dict(map(margin, 'left top right bottom'.split()))),
         E.cols(**{w('space'):'720'}),
         E.docGrid(**{w('linePitch'):"360"}),
@@ -97,7 +97,7 @@ def create_skeleton(opts, namespaces=None):
 
 def update_doc_props(root, mi, namespace):
     def setm(name, text=None, ns='dc'):
-        ans = root.makeelement('{%s}%s' % (namespace.namespaces[ns], name))
+        ans = root.makeelement(f'{{{namespace.namespaces[ns]}}}{name}')
         for child in tuple(root):
             if child.tag == ans.tag:
                 root.remove(child)
@@ -245,7 +245,7 @@ class DOCX:
         cp = E.coreProperties(E.revision("1"), E.lastModifiedBy('calibre'))
         ts = utcnow().isoformat(native_string_type('T')).rpartition('.')[0] + 'Z'
         for x in 'created modified'.split():
-            x = cp.makeelement('{%s}%s' % (namespaces['dcterms'], x), **{'{%s}type' % namespaces['xsi']:'dcterms:W3CDTF'})
+            x = cp.makeelement('{{{}}}{}'.format(namespaces['dcterms'], x), **{'{%s}type' % namespaces['xsi']:'dcterms:W3CDTF'})
             x.text = ts
             cp.append(x)
         self.mi = mi

@@ -1,18 +1,19 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 
 
 __license__ = 'GPL v3'
 __copyright__ = '2013, Kovid Goyal <kovid at kovidgoyal.net>'
 
 import os
+import re
 
-from lxml.html.builder import IMG, HR
+from lxml.html.builder import HR, IMG
 
+from calibre import sanitize_file_name
 from calibre.constants import iswindows
-from calibre.ebooks.docx.names import barename
+from calibre.ebooks.docx.names import SVG_BLIP_URI, barename
 from calibre.utils.filenames import ascii_filename
-from calibre.utils.img import resize_to_fit, image_to_data
+from calibre.utils.img import image_to_data, resize_to_fit
 from calibre.utils.imghdr import what
 from polyglot.builtins import iteritems, itervalues
 
@@ -25,7 +26,7 @@ class LinkedImageNotFound(ValueError):
 
 
 def image_filename(x):
-    return ascii_filename(x).replace(' ', '_').replace('#', '_')
+    return sanitize_file_name(re.sub(r'[^0-9a-zA-Z.-]', '_', ascii_filename(x)).lstrip('_').lstrip('.'))
 
 
 def emu_to_pt(x):
@@ -236,9 +237,12 @@ class Images:
                 name = image_filename(name)
             alt = pr.get('descr') or alt
             for a in XPath('descendant::a:blip[@r:embed or @r:link]')(pic):
-                rid = get(a, 'r:embed')
-                if not rid:
-                    rid = get(a, 'r:link')
+                rid = get(a, 'r:embed') or get(a, 'r:link')
+                for asvg in XPath(f'./a:extLst/a:ext[@uri="{SVG_BLIP_URI}"]/asvg:svgBlip[@r:embed or @r:link]')(a):
+                    svg_rid = get(asvg, 'r:embed') or get(asvg, 'r:link')
+                    if svg_rid and svg_rid in self.rid_map:
+                        rid = svg_rid
+                        break
                 if rid and rid in self.rid_map:
                     try:
                         src = self.generate_filename(rid, name)
@@ -262,7 +266,7 @@ class Images:
                 ans = self.pic_to_img(pic, alt, inline, title)
                 if ans is not None:
                     if style:
-                        ans.set('style', '; '.join('%s: %s' % (k, v) for k, v in iteritems(style)))
+                        ans.set('style', '; '.join(f'{k}: {v}' for k, v in iteritems(style)))
                     yield ans
 
         # Now process the floats
@@ -273,7 +277,7 @@ class Images:
                 ans = self.pic_to_img(pic, alt, anchor, title)
                 if ans is not None:
                     if style:
-                        ans.set('style', '; '.join('%s: %s' % (k, v) for k, v in iteritems(style)))
+                        ans.set('style', '; '.join(f'{k}: {v}' for k, v in iteritems(style)))
                     yield ans
 
     def pict_to_html(self, pict, page):
@@ -295,7 +299,7 @@ class Images:
                 style['margin-left'] = '0' if align == 'left' else 'auto'
                 style['margin-right'] = 'auto' if align == 'left' else '0'
             if style:
-                hr.set('style', '; '.join(('%s:%s' % (k, v) for k, v in iteritems(style))))
+                hr.set('style', '; '.join((f'{k}:{v}' for k, v in iteritems(style))))
             yield hr
 
         for imagedata in XPath('descendant::v:imagedata[@r:id]')(pict):
@@ -359,8 +363,6 @@ class Images:
             os.mkdir(dest)
         self.dest_dir, self.docx = dest, docx
         if elem.tag.endswith('}drawing'):
-            for tag in self.drawing_to_html(elem, page):
-                yield tag
+            yield from self.drawing_to_html(elem, page)
         else:
-            for tag in self.pict_to_html(elem, page):
-                yield tag
+            yield from self.pict_to_html(elem, page)

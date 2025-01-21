@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # Copyright (C) 2006-2007 Søren Roug, European Environment Agency
 #
 # This library is free software; you can redistribute it and/or
@@ -21,10 +20,10 @@
 
 # This script lists the content of the manifest.xml file
 
-import zipfile
-from xml.sax import make_parser,handler
-from xml.sax.xmlreader import InputSource
 import io
+import zipfile
+from xml.sax import handler, make_parser
+from xml.sax.xmlreader import InputSource
 
 MANIFESTNS="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0"
 

@@ -1,11 +1,13 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 
 
 __copyright__ = '2013, Kovid Goyal <kovid at kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import sys, os, errno, select
+import errno
+import os
+import select
+import sys
 
 
 class INotifyError(Exception):
@@ -23,7 +25,7 @@ class BaseDirChanged(ValueError):
 class DirTooLarge(ValueError):
 
     def __init__(self, bdir):
-        ValueError.__init__(self, 'The directory {0} is too large to monitor. Try increasing the value in /proc/sys/fs/inotify/max_user_watches'.format(bdir))
+        ValueError.__init__(self, f'The directory {bdir} is too large to monitor. Try increasing the value in /proc/sys/fs/inotify/max_user_watches')
 
 
 _inotify = None
@@ -116,7 +118,8 @@ class INotify:
     NONBLOCK = 0x800
 
     def __init__(self, cloexec=True, nonblock=True):
-        import ctypes, struct
+        import ctypes
+        import struct
         self._init1, self._add_watch, self._rm_watch, self._read = load_inotify()
         flags = 0
         if cloexec:
@@ -212,7 +215,7 @@ class INotifyTreeWatcher(INotify):
     is_dummy = False
 
     def __init__(self, basedir, ignore_event=None):
-        super(INotifyTreeWatcher, self).__init__()
+        super().__init__()
         self.basedir = realpath(basedir)
         self.watch_tree()
         self.modified = set()
@@ -242,13 +245,13 @@ class INotifyTreeWatcher(INotify):
                 # The entry could have been deleted between listdir() and
                 # add_watch().
                 if top_level:
-                    raise NoSuchDir('The dir {0} does not exist'.format(base))
+                    raise NoSuchDir(f'The dir {base} does not exist')
                 return
             if e.errno == errno.EACCES:
                 # We silently ignore entries for which we dont have permission,
                 # unless they are the top level dir
                 if top_level:
-                    raise NoSuchDir('You do not have permission to monitor {0}'.format(base))
+                    raise NoSuchDir(f'You do not have permission to monitor {base}')
                 return
             raise
         else:
@@ -260,14 +263,14 @@ class INotifyTreeWatcher(INotify):
                         # The dir was deleted/replaced between the add_watch()
                         # and listdir()
                         if top_level:
-                            raise NoSuchDir('The dir {0} does not exist'.format(base))
+                            raise NoSuchDir(f'The dir {base} does not exist')
                         return
                     raise
                 for x in files:
                     self.add_watches(os.path.join(base, x), top_level=False)
             elif top_level:
                 # The top level dir is a file, not good.
-                raise NoSuchDir('The dir {0} does not exist'.format(base))
+                raise NoSuchDir(f'The dir {base} does not exist')
 
     def add_watch(self, path):
         import ctypes
@@ -283,7 +286,7 @@ class INotifyTreeWatcher(INotify):
             eno = ctypes.get_errno()
             if eno == errno.ENOTDIR:
                 return False
-            raise OSError(eno, 'Failed to add watch for: {0}: {1}'.format(path, self.os.strerror(eno)))
+            raise OSError(eno, f'Failed to add watch for: {path}: {self.os.strerror(eno)}')
         self.watched_dirs[path] = wd
         self.watched_rmap[wd] = path
         return True

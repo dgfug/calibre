@@ -1,21 +1,23 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 
 
 __license__ = 'GPL v3'
 __copyright__ = '2013, Kovid Goyal <kovid at kovidgoyal.net>'
 
-import shutil, os, errno
+import errno
+import os
+import shutil
+import stat
 from threading import Thread
 
-from qt.core import (QObject, pyqtSignal, QLabel, QWidget, QHBoxLayout, Qt, QSize)
+from qt.core import QHBoxLayout, QLabel, QObject, QSize, Qt, QWidget, pyqtSignal
 
 from calibre.constants import iswindows
-from calibre.ptempfile import PersistentTemporaryFile
 from calibre.gui2.progress_indicator import ProgressIndicator
+from calibre.ptempfile import PersistentTemporaryFile
 from calibre.utils import join_with_timeout
 from calibre.utils.filenames import atomic_rename, format_permissions
-from polyglot.queue import LifoQueue, Empty
+from polyglot.queue import Empty, LifoQueue
 
 
 def save_dir_container(container, path):
@@ -37,28 +39,28 @@ def save_container(container, path):
         st = None
         try:
             st = os.stat(path)
-        except EnvironmentError as err:
+        except OSError as err:
             if err.errno != errno.ENOENT:
                 raise
             # path may not exist if we are saving a copy, in which case we use
             # the metadata from the original book
             try:
                 st = os.stat(container.path_to_ebook)
-            except EnvironmentError as err:
+            except OSError as err:
                 if err.errno != errno.ENOENT:
                     raise
                 # Somebody deleted the original file
         if st is not None:
             try:
-                os.fchmod(fno, st.st_mode)
-            except EnvironmentError as err:
+                os.fchmod(fno, st.st_mode | stat.S_IWUSR)
+            except OSError as err:
                 if err.errno != errno.EPERM:
                     raise
-                raise EnvironmentError('Failed to change permissions of %s to %s (%s), with error: %s. Most likely the %s directory has a restrictive umask' % (
+                raise OSError('Failed to change permissions of {} to {} ({}), with error: {}. Most likely the {} directory has a restrictive umask'.format(
                     temp.name, oct(st.st_mode), format_permissions(st.st_mode), errno.errorcode[err.errno], os.path.dirname(temp.name)))
             try:
                 os.fchown(fno, st.st_uid, st.st_gid)
-            except EnvironmentError as err:
+            except OSError as err:
                 if err.errno not in (errno.EPERM, errno.EACCES):
                     # ignore chown failure as user could be editing file belonging
                     # to a different user, in which case we really can't do anything

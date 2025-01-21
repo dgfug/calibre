@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 __license__   = 'GPL v3'
@@ -9,8 +8,8 @@ __docformat__ = 'restructuredtext en'
 import os
 
 from calibre import prints
-from calibre.utils.date import isoformat, DEFAULT_DATE
-from polyglot.builtins import itervalues, unicode_type
+from calibre.utils.date import DEFAULT_DATE, isoformat
+from polyglot.builtins import itervalues
 
 
 class SchemaUpgrade:
@@ -301,7 +300,7 @@ class SchemaUpgrade:
         for field in itervalues(self.field_metadata):
             if field['is_category'] and not field['is_custom'] and 'link_column' in field:
                 table = self.db.get(
-                    'SELECT name FROM sqlite_master WHERE type="table" AND name=?',
+                    'SELECT name FROM sqlite_master WHERE type=\'table\' AND name=?',
                     ('books_%s_link'%field['table'],), all=False)
                 if table is not None:
                     create_tag_browser_view(field['table'], field['link_column'], field['column'])
@@ -377,7 +376,7 @@ class SchemaUpgrade:
         for field in itervalues(self.field_metadata):
             if field['is_category'] and not field['is_custom'] and 'link_column' in field:
                 table = self.db.get(
-                    'SELECT name FROM sqlite_master WHERE type="table" AND name=?',
+                    'SELECT name FROM sqlite_master WHERE type=\'table\' AND name=?',
                     ('books_%s_link'%field['table'],), all=False)
                 if table is not None:
                     create_std_tag_browser_view(field['table'], field['link_column'],
@@ -591,17 +590,16 @@ class SchemaUpgrade:
     def upgrade_version_19(self):
         recipes = self.db.get('SELECT id,title,script FROM feeds')
         if recipes:
-            from calibre.web.feeds.recipes import (custom_recipes,
-                    custom_recipe_filename)
+            from calibre.web.feeds.recipes import custom_recipe_filename, custom_recipes
             bdir = os.path.dirname(custom_recipes.file_path)
             for id_, title, script in recipes:
                 existing = frozenset(map(int, custom_recipes))
                 if id_ in existing:
                     id_ = max(existing) + 1000
-                id_ = unicode_type(id_)
+                id_ = str(id_)
                 fname = custom_recipe_filename(id_, title)
                 custom_recipes[id_] = (title, fname)
-                if isinstance(script, unicode_type):
+                if isinstance(script, str):
                     script = script.encode('utf-8')
                 with open(os.path.join(bdir, fname), 'wb') as f:
                     f.write(script)
@@ -794,3 +792,30 @@ CREATE TRIGGER fkc_annot_update
 
     def upgrade_version_24(self):
         self.db.reindex_annotations()
+
+    def upgrade_version_25(self):
+        alters = []
+        for record in self.db.execute(
+                'SELECT label,name,datatype,editable,display,normalized,id,is_multiple FROM custom_columns'):
+            data = {
+                    'label':record[0],
+                    'name':record[1],
+                    'datatype':record[2],
+                    'editable':bool(record[3]),
+                    'display':record[4],
+                    'normalized':bool(record[5]),
+                    'num':record[6],
+                    'is_multiple':bool(record[7]),
+                    }
+            if data['normalized']:
+                tn = 'custom_column_{}'.format(data['num'])
+                alters.append(f"ALTER TABLE {tn} ADD COLUMN link TEXT NOT NULL DEFAULT '';")
+
+        alters.append("ALTER TABLE publishers ADD COLUMN link TEXT NOT NULL DEFAULT '';")
+        alters.append("ALTER TABLE series ADD COLUMN link TEXT NOT NULL DEFAULT '';")
+        alters.append("ALTER TABLE tags ADD COLUMN link TEXT NOT NULL DEFAULT '';")
+        # These aren't necessary in that there is no UI to set links, but having them
+        # makes the code uniform
+        alters.append("ALTER TABLE languages ADD COLUMN link TEXT NOT NULL DEFAULT '';")
+        alters.append("ALTER TABLE ratings ADD COLUMN link TEXT NOT NULL DEFAULT '';")
+        self.db.execute('\n'.join(alters))

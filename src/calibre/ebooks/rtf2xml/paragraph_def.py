@@ -1,4 +1,3 @@
-
 #########################################################################
 #                                                                       #
 #                                                                       #
@@ -11,11 +10,11 @@
 #                                                                       #
 #                                                                       #
 #########################################################################
-import sys, os
+import os
+import sys
 
-from calibre.ebooks.rtf2xml import copy, border_parse
+from calibre.ebooks.rtf2xml import border_parse, copy
 from calibre.ptempfile import better_mktemp
-from polyglot.builtins import unicode_type
 
 from . import open_for_read, open_for_write
 
@@ -118,8 +117,6 @@ if another paragraph_def is found, the state changes to collect_tokens.
         'sect-note_'    : 'endnotes-in-section',
         # list=> ls
         'list-text_'    : 'list-text',
-        # this line must be wrong because it duplicates an earlier one
-        'list-text_'    : 'list-text',
         'list______'    : 'list',
         'list-lev-d'    : 'list-level-definition',
         'list-cardi'    : 'list-cardinal-numbering',
@@ -132,7 +129,7 @@ if another paragraph_def is found, the state changes to collect_tokens.
         'list-simpi'    : 'list-simple',
         'list-conti'    : 'list-continue',
         'list-hang_'    : 'list-hang',
-        # 'list-tebef'    :	'list-text-before',
+        # 'list-tebef'    : 'list-text-before',
         # 'list-level'    : 'level',
         'list-id___'    : 'list-id',
         'list-start'    : 'list-start',
@@ -615,7 +612,7 @@ if another paragraph_def is found, the state changes to collect_tokens.
         ignore_values = ['style-num', 'nest-level', 'in-table']
         for k in sorted(self.__att_val_dict):
             if k not in ignore_values:
-                my_string += '%s:%s' % (k, self.__att_val_dict[k])
+                my_string += f'{k}:{self.__att_val_dict[k]}'
         if my_string in self.__style_num_strings:
             num = self.__style_num_strings.index(my_string)
             num += 1  # since indexing starts at zero, rather than 1
@@ -624,7 +621,7 @@ if another paragraph_def is found, the state changes to collect_tokens.
             num = len(self.__style_num_strings)
             new_style = 1
         num = '%04d' % num
-        self.__att_val_dict['style-num'] = 's' + unicode_type(num)
+        self.__att_val_dict['style-num'] = 's' + str(num)
         if new_style:
             self.__write_body_styles()
 
@@ -638,11 +635,11 @@ if another paragraph_def is found, the state changes to collect_tokens.
         if self.__att_val_dict['tabs'] != '':
             the_value = self.__att_val_dict['tabs']
             # the_value = the_value[:-1]
-            style_string += ('<%s>%s' % ('tabs', the_value))
+            style_string += ('<{}>{}'.format('tabs', the_value))
         exclude = frozenset(['name', 'style-num', 'in-table'] + tabs_list)
         for k in sorted(self.__att_val_dict):
             if k not in exclude:
-                style_string += ('<%s>%s' % (k, self.__att_val_dict[k]))
+                style_string += (f'<{k}>{self.__att_val_dict[k]}')
         style_string += '\n'
         self.__body_style_strings.append(style_string)
 
@@ -689,12 +686,12 @@ if another paragraph_def is found, the state changes to collect_tokens.
         if self.__att_val_dict['tabs'] != '':
             the_value = self.__att_val_dict['tabs']
             # the_value = the_value[:-1]
-            self.__write_obj.write('<%s>%s' % ('tabs', the_value))
+            self.__write_obj.write('<{}>{}'.format('tabs', the_value))
         keys = sorted(self.__att_val_dict)
         exclude = frozenset(['name', 'style-num', 'in-table'] + tabs_list)
         for key in keys:
             if key not in exclude:
-                self.__write_obj.write('<%s>%s' % (key, self.__att_val_dict[key]))
+                self.__write_obj.write(f'<{key}>{self.__att_val_dict[key]}')
         self.__write_obj.write('\n')
         self.__write_obj.write(self.__start2_marker)
         if 'font-style' in keys:

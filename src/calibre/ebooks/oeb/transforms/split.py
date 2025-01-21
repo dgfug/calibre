@@ -1,4 +1,3 @@
-
 __license__   = 'GPL v3'
 __copyright__ = '2008, Kovid Goyal kovid@kovidgoyal.net'
 __docformat__ = 'restructuredtext en'
@@ -9,20 +8,24 @@ forced at "likely" locations to conform to size limitations. This transform
 assumes a prior call to the flatcss transform.
 '''
 
-import os, functools, collections, re, copy
+import collections
+import copy
+import functools
+import os
+import re
 from collections import OrderedDict
 
-from lxml.etree import XPath as _XPath
+from css_selectors import Select, SelectorError
 from lxml import etree
+from lxml.etree import XPath as _XPath
 
 from calibre import as_unicode, force_unicode
 from calibre.ebooks.epub import rules
-from calibre.ebooks.oeb.base import (OEB_STYLES, XPNSMAP as NAMESPACES,
-        urldefrag, rewrite_links, XHTML, urlnormalize)
+from calibre.ebooks.oeb.base import OEB_STYLES, XHTML, rewrite_links, urldefrag, urlnormalize
+from calibre.ebooks.oeb.base import XPNSMAP as NAMESPACES
 from calibre.ebooks.oeb.polish.split import do_split
-from polyglot.builtins import iteritems, range, map, unicode_type
+from polyglot.builtins import iteritems
 from polyglot.urllib import unquote
-from css_selectors import Select, SelectorError
 
 XPath = functools.partial(_XPath, namespaces=NAMESPACES)
 
@@ -119,11 +122,11 @@ class Split:
                         elem.set('pb_before', '1' if before else '0')
                         page_breaks.add(elem)
             except SelectorError as err:
-                self.log.warn('Ignoring page breaks specified with invalid CSS selector: %r (%s)' % (selector, as_unicode(err)))
+                self.log.warn(f'Ignoring page breaks specified with invalid CSS selector: {selector!r} ({as_unicode(err)})')
 
         for i, elem in enumerate(item.data.iter('*')):
             try:
-                elem.set('pb_order', unicode_type(i))
+                elem.set('pb_order', str(i))
             except TypeError:  # Can't set attributes on comment nodes etc.
                 continue
 

@@ -1,5 +1,3 @@
-
-
 """Easy to use object-oriented thread pool framework.
 
 A thread pool is an object that maintains a pool of worker threads to perform
@@ -49,6 +47,7 @@ __license__ = 'Python license'
 
 # standard library modules
 import threading
+
 from polyglot import queue
 
 # exceptions
@@ -74,14 +73,13 @@ class WorkerThread(threading.Thread):
     """
 
     def __init__(self, requestsQueue, resultsQueue, **kwds):
-        """Set up thread in daemonic mode and start it immediatedly.
+        """Set up thread in daemonic mode and start it immediately.
 
         requestsQueue and resultQueue are instances of queue.Queue passed
         by the ThreadPool class when it creates a new worker thread.
         """
-
+        kwds['daemon'] = True
         threading.Thread.__init__(self, **kwds)
-        self.setDaemon(1)
         self.workRequestQueue = requestsQueue
         self.resultQueue = resultsQueue
         self._dismissed = threading.Event()
@@ -289,7 +287,7 @@ if __name__ == '__main__':
 
     # this will be called each time a result is available
     def print_result(request, result):
-        print("**Result: %s from request #%s" % (result, request.requestID))
+        print(f"**Result: {result} from request #{request.requestID}")
 
     # this will be called when an exception occurs within a thread
     def handle_exception(request, exc_info):

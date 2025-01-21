@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 
 
 __license__ = 'GPL v3'
@@ -7,14 +6,19 @@ __copyright__ = '2013, Kovid Goyal <kovid at kovidgoyal.net>'
 
 import re
 
-from lxml.etree import Element as LxmlElement
 import html5_parser
+from lxml.etree import Element as LxmlElement
 
-from calibre import xml_replace_entities
-from calibre.utils.xml_parse import safe_xml_fromstring
-from calibre.ebooks.chardet import xml_to_unicode, strip_encoding_declarations
+from calibre.ebooks.chardet import strip_encoding_declarations, xml_to_unicode
 from calibre.utils.cleantext import clean_xml_chars
-from polyglot.builtins import unicode_type
+from calibre.utils.xml_parse import safe_xml_fromstring
+
+try:
+    from calibre_extensions.fast_html_entities import replace_all_entities
+except ImportError:
+    def replace_all_entities(raw, keep_xml_entities: bool = False):
+        from calibre import xml_replace_entities
+        return xml_replace_entities(raw)
 
 XHTML_NS     = 'http://www.w3.org/1999/xhtml'
 
@@ -23,14 +27,14 @@ def parse_html5(raw, decoder=None, log=None, discard_namespaces=False, line_numb
     if isinstance(raw, bytes):
         raw = xml_to_unicode(raw)[0] if decoder is None else decoder(raw)
     if replace_entities:
-        raw = xml_replace_entities(raw)
+        raw = replace_all_entities(raw, True)
     if fix_newlines:
         raw = raw.replace('\r\n', '\n').replace('\r', '\n')
     raw = clean_xml_chars(raw)
     root = html5_parser.parse(raw, maybe_xhtml=not discard_namespaces, line_number_attr=linenumber_attribute, keep_doctype=False, sanitize_names=True)
     if (discard_namespaces and root.tag != 'html') or (
-        not discard_namespaces and (root.tag != '{%s}%s' % (XHTML_NS, 'html') or root.prefix)):
-        raise ValueError('Failed to parse correctly, root has tag: %s and prefix: %s' % (root.tag, root.prefix))
+        not discard_namespaces and (root.tag != '{{{}}}{}'.format(XHTML_NS, 'html') or root.prefix)):
+        raise ValueError(f'Failed to parse correctly, root has tag: {root.tag} and prefix: {root.prefix}')
     return root
 
 
@@ -62,7 +66,7 @@ def parse(raw, decoder=None, log=None, line_numbers=True, linenumber_attribute=N
         raw = xml_to_unicode(raw)[0] if decoder is None else decoder(raw)
     raw = handle_private_entities(raw)
     if replace_entities:
-        raw = xml_replace_entities(raw).replace('\0', '')  # Handle &#0;
+        raw = replace_all_entities(raw, True)
     raw = raw.replace('\r\n', '\n').replace('\r', '\n')
 
     # Remove any preamble before the opening html tag as it can cause problems,
@@ -84,7 +88,7 @@ def parse(raw, decoder=None, log=None, line_numbers=True, linenumber_attribute=N
         if linenumber_attribute:
             for elem in ans.iter(LxmlElement):
                 if elem.sourceline is not None:
-                    elem.set(linenumber_attribute, unicode_type(elem.sourceline))
+                    elem.set(linenumber_attribute, str(elem.sourceline))
         return ans
     except Exception:
         if log is not None:

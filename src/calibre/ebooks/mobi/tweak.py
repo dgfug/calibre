@@ -1,24 +1,23 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 __license__   = 'GPL v3'
 __copyright__ = '2012, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import os, glob
+import glob
+import os
 
 from calibre import CurrentDir
-from calibre.ebooks.mobi import MobiError
-from calibre.ebooks.mobi.reader.mobi6 import MobiReader
-from calibre.ebooks.mobi.reader.headers import MetadataHeader
-from calibre.utils.logging import default_log
+from calibre.customize.ui import plugin_for_input_format, plugin_for_output_format
 from calibre.ebooks import DRMError
-from calibre.ebooks.mobi.reader.mobi8 import Mobi8Reader
 from calibre.ebooks.conversion.plumber import Plumber, create_oebbook
-from calibre.customize.ui import (plugin_for_input_format,
-        plugin_for_output_format)
+from calibre.ebooks.mobi import MobiError
+from calibre.ebooks.mobi.reader.headers import MetadataHeader
+from calibre.ebooks.mobi.reader.mobi6 import MobiReader
+from calibre.ebooks.mobi.reader.mobi8 import Mobi8Reader
 from calibre.utils.ipc.simple_worker import fork_job
+from calibre.utils.logging import default_log
 
 
 class BadFormat(ValueError):
@@ -106,4 +105,3 @@ def rebuild(src_dir, dest_path):
     #     do_rebuild(*args)
     fork_job('calibre.ebooks.mobi.tweak', 'do_rebuild', args=(opf, dest_path),
             no_output=True)
-

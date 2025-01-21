@@ -1,20 +1,31 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 # License: GPLv3 Copyright: 2015, Kovid Goyal <kovid at kovidgoyal.net>
-
 
 from collections import defaultdict
 from threading import Thread
 
 from qt.core import (
-    QCheckBox, QHBoxLayout, QIcon, QInputDialog, QLabel, QProgressBar, QSizePolicy,
-    QStackedWidget, Qt, QTextBrowser, QVBoxLayout, QWidget, pyqtSignal, QDialogButtonBox
+    QCheckBox,
+    QDialogButtonBox,
+    QHBoxLayout,
+    QIcon,
+    QInputDialog,
+    QLabel,
+    QProgressBar,
+    QSizePolicy,
+    QStackedWidget,
+    Qt,
+    QTextBrowser,
+    QVBoxLayout,
+    QWidget,
+    pyqtSignal,
 )
 
 from calibre.gui2 import error_dialog
 from calibre.gui2.tweak_book import current_container, editors, set_current_container, tprefs
 from calibre.gui2.tweak_book.boss import get_boss
 from calibre.gui2.tweak_book.widgets import Dialog
+from calibre.utils.localization import ngettext
 from polyglot.builtins import iteritems
 
 
@@ -85,7 +96,7 @@ class CheckExternalLinks(Dialog):
         l.addLayout(h)
         self.bb.setStandardButtons(QDialogButtonBox.StandardButton.Close)
         self.rb = b = self.bb.addButton(_('&Refresh'), QDialogButtonBox.ButtonRole.ActionRole)
-        b.setIcon(QIcon(I('view-refresh.png')))
+        b.setIcon(QIcon.ic('view-refresh.png'))
         b.clicked.connect(self.refresh)
 
     def anchors_changed(self):
@@ -169,11 +180,12 @@ class CheckExternalLinks(Dialog):
 
 if __name__ == '__main__':
     import sys
+
     from calibre.gui2 import Application
     from calibre.gui2.tweak_book.boss import get_container
     app = Application([])
     set_current_container(get_container(sys.argv[-1]))
     d = CheckExternalLinks()
     d.refresh()
-    d.exec_()
+    d.exec()
     del app

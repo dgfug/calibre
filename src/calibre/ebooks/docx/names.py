@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 
 
 __license__ = 'GPL v3'
@@ -47,6 +46,7 @@ TRANSITIONAL_NAMESPACES = {
     'xml': 'http://www.w3.org/XML/1998/namespace',
     # Drawing
     'a': 'http://schemas.openxmlformats.org/drawingml/2006/main',
+    'a14': 'http://schemas.microsoft.com/office/drawing/2010/main',
     'm': 'http://schemas.openxmlformats.org/officeDocument/2006/math',
     'mv': 'urn:schemas-microsoft-com:mac:vml',
     'pic': 'http://schemas.openxmlformats.org/drawingml/2006/picture',
@@ -64,7 +64,9 @@ TRANSITIONAL_NAMESPACES = {
     'pr': 'http://schemas.openxmlformats.org/package/2006/relationships',
     # Dublin Core document properties
     'dcmitype': 'http://purl.org/dc/dcmitype/',
-    'dcterms': 'http://purl.org/dc/terms/'
+    'dcterms': 'http://purl.org/dc/terms/',
+    # SVG embeds
+    'asvg': 'http://schemas.microsoft.com/office/drawing/2016/SVG/main',
 }
 
 STRICT_NAMESPACES = {
@@ -74,6 +76,8 @@ STRICT_NAMESPACES = {
         'http://schemas.openxmlformats.org/drawingml/2006', 'http://purl.oclc.org/ooxml/drawingml')
     for k, v in iteritems(TRANSITIONAL_NAMESPACES)
 }
+SVG_BLIP_URI = '{96DAC541-7B7A-43D3-8B79-37D633B846F1}'
+USE_LOCAL_DPI_URI = '{28A0092B-C50C-407E-A947-70E740481C1C}'
 # }}}
 
 
@@ -82,7 +86,7 @@ def barename(x):
 
 
 def XML(x):
-    return '{%s}%s' % (TRANSITIONAL_NAMESPACES['xml'], x)
+    return '{{{}}}{}'.format(TRANSITIONAL_NAMESPACES['xml'], x)
 
 
 def generate_anchor(name, existing):
@@ -114,12 +118,12 @@ class DOCXNamespace:
     def is_tag(self, x, q):
         tag = getattr(x, 'tag', x)
         ns, name = q.partition(':')[0::2]
-        return '{%s}%s' % (self.namespaces.get(ns, None), name) == tag
+        return f'{{{self.namespaces.get(ns, None)}}}{name}' == tag
 
     def expand(self, name, sep=':'):
         ns, tag = name.partition(sep)[::2]
         if ns and tag:
-            tag = '{%s}%s' % (self.namespaces[ns], tag)
+            tag = f'{{{self.namespaces[ns]}}}{tag}'
         return tag or ns
 
     def get(self, x, attr, default=None):

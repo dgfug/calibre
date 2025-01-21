@@ -7,19 +7,18 @@ __copyright__ = '2008, Kovid Goyal <kovid at kovidgoyal.net>'
 
 import copy
 
-from lxml import html, etree
-from lxml.html.builder import HTML, HEAD, TITLE, STYLE, DIV, BODY, \
-        STRONG, BR, SPAN, A, HR, UL, LI, H2, H3, IMG, P as PT, \
-        TABLE, TD, TR
+from lxml import etree, html
+from lxml.html.builder import BODY, BR, DIV, H2, H3, HEAD, HR, HTML, IMG, LI, SPAN, STRONG, STYLE, TABLE, TD, TITLE, TR, UL, A
+from lxml.html.builder import P as PT
 
-from calibre import strftime, isbytestring
-from polyglot.builtins import unicode_type
+from calibre import isbytestring, strftime
+from calibre.utils.localization import _
 
 
 def attrs(*args, **kw):
     rescale = kw.pop('rescale', None)
     if rescale is not None:
-        kw['data-calibre-rescale'] = unicode_type(rescale)
+        kw['data-calibre-rescale'] = str(rescale)
     if args:
         kw['class'] = ' '.join(args)
     return kw
@@ -79,7 +78,7 @@ class EmbeddedContent(Template):
         self.root = HTML(head,
                 BODY(H2(article.title), DIV()))
         div = self.root.find('body').find('div')
-        if elements and isinstance(elements[0], unicode_type):
+        if elements and isinstance(elements[0], str):
             div.text = elements[0]
             elements = list(elements)[1:]
         for elem in elements:
@@ -249,7 +248,7 @@ class TouchscreenIndexTemplate(Template):
 
     def _generate(self, title, masthead, datefmt, feeds, extra_css=None, style=None):
         self.IS_HTML = False
-        date = '%s, %s %s, %s' % (strftime('%A'), strftime('%B'), strftime('%d').lstrip('0'), strftime('%Y'))
+        date = '{}, {} {}, {}'.format(strftime('%A'), strftime('%B'), strftime('%d').lstrip('0'), strftime('%Y'))
         masthead_p = etree.Element("p")
         masthead_p.set("style","text-align:center")
         masthead_img = etree.Element("img")

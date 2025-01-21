@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 
 
 __license__ = 'GPL v3'
@@ -9,8 +8,7 @@ import sys
 from threading import Thread
 
 from calibre.utils.monotonic import monotonic
-from polyglot.builtins import range
-from polyglot.queue import Queue, Full
+from polyglot.queue import Full, Queue
 
 
 class Worker(Thread):

@@ -1,14 +1,13 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 # License: GPLv3 Copyright: 2014, Kovid Goyal <kovid at kovidgoyal.net>
 
 
 import glob
+import json
 import os
 import re
 import shutil
 import sys
-from calibre_extensions import hunspell
 from collections import defaultdict, namedtuple
 from functools import partial
 from itertools import chain
@@ -18,8 +17,9 @@ from calibre.constants import config_dir, filesystem_encoding, iswindows
 from calibre.spell import parse_lang_code
 from calibre.utils.config import JSONConfig
 from calibre.utils.icu import capitalize
-from calibre.utils.localization import get_lang, get_system_locale
-from polyglot.builtins import filter, iteritems, itervalues, map, unicode_type
+from calibre.utils.localization import _, get_lang, get_system_locale
+from calibre.utils.resources import get_path as P
+from polyglot.builtins import iteritems, itervalues
 
 Dictionary = namedtuple('Dictionary', 'primary_locale locales dicpath affpath builtin name id')
 LoadedDictionary = namedtuple('Dictionary', 'primary_locale locales obj builtin name id')
@@ -61,6 +61,18 @@ def builtin_dictionaries():
                 os.path.join(base, '%s.aff' % locale), True, None, None))
         _builtins = frozenset(dics)
     return _builtins
+
+
+def catalog_online_dictionaries():
+    loaded = json.loads(P('dictionaries/online-catalog.json', allow_user_override=False, data=True))
+    try:
+        loaded.update(json.loads(P('dictionaries/online-catalog.json', data=True)))
+    except:
+        pass
+    rslt = []
+    for lang, directory in loaded.items():
+        rslt.append({'primary_locale':parse_lang_code(lang), 'name':lang,'directory':directory})
+    return rslt
 
 
 def custom_dictionaries(reread=False):
@@ -165,13 +177,14 @@ def get_dictionary(locale, exact_match=False):
 
 
 def load_dictionary(dictionary):
+    from calibre_extensions import hunspell
 
     def fix_path(path):
         if isinstance(path, bytes):
             path = path.decode(filesystem_encoding)
         path = os.path.abspath(path)
         if iswindows:
-            path = r'\\?\{}'.format(path)
+            path = fr'\\?\{path}'
         return path
 
     obj = hunspell.Dictionary(fix_path(dictionary.dicpath), fix_path(dictionary.affpath))
@@ -217,7 +230,7 @@ class Dictionaries:
                                 ans.obj.add(word)
                             except Exception:
                                 # not critical since all it means is that the word won't show up in suggestions
-                                prints('Failed to add the word %r to the dictionary for %s' % (word, locale), file=sys.stderr)
+                                prints(f'Failed to add the word {word!r} to the dictionary for {locale}', file=sys.stderr)
             self.dictionaries[locale] = ans
         return ans
 
@@ -278,7 +291,7 @@ class Dictionaries:
         wl = len(ud.words)
         if isinstance(word, (set, frozenset)):
             ud.words |= word
-            self.add_user_words(word, locale.langcode)
+            self.add_user_words({x[0] for x in word}, locale.langcode)
         else:
             ud.words.add((word, locale.langcode))
             self.add_user_words((word,), locale.langcode)
@@ -397,7 +410,7 @@ class Dictionaries:
 
         if d is not None:
             try:
-                ans = d.obj.suggest(unicode_type(word).replace('\u2010', '-'))
+                ans = d.obj.suggest(str(word).replace('\u2010', '-'))
             except ValueError:
                 pass
             else:
@@ -437,7 +450,7 @@ def find_tests():
         def setUp(self):
             dictionaries = Dictionaries()
             dictionaries.initialize()
-            eng = parse_lang_code('en')
+            eng = parse_lang_code('en-GB')
             self.recognized = partial(dictionaries.recognized, locale=eng)
             self.suggestions = partial(dictionaries.suggestions, locale=eng)
 
@@ -448,11 +461,21 @@ def find_tests():
         def test_dictionaries(self):
             for w in 'recognized one-half one\u2010half'.split():
                 self.ar(w)
-            d = load_dictionary(get_dictionary(parse_lang_code('es'))).obj
-            self.assertTrue(d.recognized('Achí'))
+            d = load_dictionary(get_dictionary(parse_lang_code('es-ES'))).obj
+            self.assertTrue(d.recognized('Ahí'))
             self.assertIn('one\u2010half', self.suggestions('oone\u2010half'))
+            d = load_dictionary(get_dictionary(parse_lang_code('es'))).obj
             self.assertIn('adequately', self.suggestions('ade-quately'))
             self.assertIn('magic. Wand', self.suggestions('magic.wand'))
             self.assertIn('List', self.suggestions('Lis𝑘t'))
 
     return unittest.TestLoader().loadTestsFromTestCase(TestDictionaries)
+
+
+def test():
+    from calibre.utils.run_tests import run_cli
+    run_cli(find_tests())
+
+
+if __name__ == '__main__':
+    test()

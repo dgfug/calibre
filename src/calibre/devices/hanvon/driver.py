@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-
 __license__   = 'GPL v3'
 __copyright__ = '2009, John Schember <john at nachtimwald.com>'
 __docformat__ = 'restructuredtext en'
@@ -8,7 +5,8 @@ __docformat__ = 'restructuredtext en'
 '''
 Device driver for Hanvon devices
 '''
-import re, os
+import os
+import re
 
 from calibre import fsync
 from calibre.devices.usbms.driver import USBMS
@@ -129,7 +127,7 @@ class ALEX(N516):
         cdir = os.path.dirname(cpath)
         if not os.path.exists(cdir):
             os.makedirs(cdir)
-        with lopen(cpath, 'wb') as coverfile:
+        with open(cpath, 'wb') as coverfile:
             coverfile.write(cover)
             fsync(coverfile)
 

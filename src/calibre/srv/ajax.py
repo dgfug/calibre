@@ -1,26 +1,27 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 
 
 __license__ = 'GPL v3'
 __copyright__ = '2015, Kovid Goyal <kovid at kovidgoyal.net>'
 
 from functools import partial
-from polyglot.builtins import iteritems, itervalues, unicode_type, zip, string_or_bytes, map
 from itertools import cycle
 
 from calibre import force_unicode
-from calibre.library.field_metadata import category_icon_map
 from calibre.db.view import sanitize_sort_field_name
 from calibre.ebooks.metadata import title_sort
 from calibre.ebooks.metadata.book.json_codec import JsonCodec
-from calibre.srv.errors import HTTPNotFound, BookNotFound
+from calibre.library.field_metadata import category_icon_map
+from calibre.srv.content import get as get_content
+from calibre.srv.content import icon as get_icon
+from calibre.srv.errors import BookNotFound, HTTPNotFound
 from calibre.srv.routes import endpoint, json
-from calibre.srv.content import get as get_content, icon as get_icon
-from calibre.srv.utils import http_date, custom_fields_to_display, encode_name, decode_name, get_db
+from calibre.srv.utils import custom_fields_to_display, decode_name, encode_name, get_db, http_date
 from calibre.utils.config import prefs, tweaks
 from calibre.utils.date import isoformat, timestampfromdt
 from calibre.utils.icu import numeric_sort_key as sort_key
+from calibre.utils.localization import _
+from polyglot.builtins import iteritems, itervalues, string_or_bytes
 
 
 def ensure_val(x, *allowed):
@@ -82,7 +83,7 @@ def book_to_json(ctx, rd, db, book_id,
             if mtime is not None:
                 v['mtime'] = isoformat(mtime, as_utc=True)
         data['format_metadata'] = mi.format_metadata
-        fmts = set(x.lower() for x in mi.format_metadata)
+        fmts = {x.lower() for x in mi.format_metadata}
         pf = prefs['output_format'].lower()
         other_fmts = list(fmts)
         try:
@@ -115,7 +116,7 @@ def book_to_json(ctx, rd, db, book_id,
                                 dbtags[category] = ctx.url_for(
                                     books_in,
                                     encoded_category=encode_name(tag.category if tag.category else key),
-                                    encoded_item=encode_name(tag.original_name if tag.id is None else unicode_type(tag.id)),
+                                    encoded_item=encode_name(tag.original_name if tag.id is None else str(tag.id)),
                                     library_id=db.server_library_id
                                 )
                                 break
@@ -127,14 +128,15 @@ def book_to_json(ctx, rd, db, book_id,
         data['_series_sort_'] = series
         if device_for_template:
             import posixpath
+
+            from calibre.customize.ui import device_plugins
             from calibre.devices.utils import create_upload_path
             from calibre.utils.filenames import ascii_filename as sanitize
-            from calibre.customize.ui import device_plugins
 
             for device_class in device_plugins():
                 if device_class.__class__.__name__ == device_for_template:
                     template = device_class.save_template()
-                    data['_filename_'] = create_upload_path(mi, unicode_type(book_id),
+                    data['_filename_'] = create_upload_path(mi, str(book_id),
                             template, sanitize, path_type=posixpath)
                     break
 
@@ -402,7 +404,7 @@ def category(ctx, rd, encoded_name, library_id):
                     '.' in x.original_name]
 
             if subcategory is None:
-                children = set(x[0] for x in category_names)
+                children = {x[0] for x in category_names}
                 category_name = [meta['name']]
                 items = [x for x in categories[toplevel] if '.' not in x.original_name]
             else:
@@ -410,16 +412,16 @@ def category(ctx, rd, encoded_name, library_id):
                 category_name = [meta['name']] + subcategory_parts
 
                 lsp = len(subcategory_parts)
-                children = set('.'.join(x) for x in category_names if len(x) ==
-                        lsp+1 and x[:lsp] == subcategory_parts)
+                children = {'.'.join(x) for x in category_names if len(x) ==
+                        lsp+1 and x[:lsp] == subcategory_parts}
                 items = [x for x in categories[toplevel] if x.original_name in
                         children]
                 item_names = {x:x.original_name.rpartition('.')[-1] for x in
                         items}
                 # Only mark the subcategories that have children themselves as
                 # subcategories
-                children = set('.'.join(x[:lsp+1]) for x in category_names if len(x) >
-                        lsp+1 and x[:lsp] == subcategory_parts)
+                children = {'.'.join(x[:lsp+1]) for x in category_names if len(x) >
+                        lsp+1 and x[:lsp] == subcategory_parts}
             subcategories = [{'name':x.rpartition('.')[-1],
                 'url':toplevel+'.'+x,
                 'icon':category_icon(toplevel, meta)} for x in children]
@@ -445,7 +447,7 @@ def category(ctx, rd, encoded_name, library_id):
             'average_rating': x.avg_rating,
             'count': x.count,
             'url': ctx.url_for(books_in, encoded_category=encode_name(x.category if x.category else toplevel),
-                               encoded_item=encode_name(x.original_name if x.id is None else unicode_type(x.id)),
+                               encoded_item=encode_name(x.original_name if x.id is None else str(x.id)),
                                library_id=db.server_library_id
                                ),
             'has_children': x.original_name in children,
@@ -474,7 +476,7 @@ def books_in(ctx, rd, encoded_category, encoded_item, library_id):
         try:
             dname, ditem = map(decode_name, (encoded_category, encoded_item))
         except:
-            raise HTTPNotFound('Invalid encoded param: %r (%r)' % (encoded_category, encoded_item))
+            raise HTTPNotFound(f'Invalid encoded param: {encoded_category!r} ({encoded_item!r})')
         num, offset = get_pagination(rd.query)
         sort, sort_order = rd.query.get('sort', 'title'), rd.query.get('sort_order')
         sort_order = ensure_val(sort_order, 'asc', 'desc')
@@ -551,7 +553,7 @@ def search_result(ctx, rd, db, query, num, offset, sort, sort_order, vl=''):
         'vl': vl,
     }
     if parse_error is not None:
-        ans['bad_restriction'] = unicode_type(parse_error)
+        ans['bad_restriction'] = str(parse_error)
     return ans
 
 

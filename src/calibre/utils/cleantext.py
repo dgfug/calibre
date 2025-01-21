@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 # License: GPLv3 Copyright: 2010, Kovid Goyal <kovid at kovidgoyal.net>
 
 
@@ -7,7 +6,7 @@ import re
 
 from calibre.constants import preferred_encoding
 from calibre_extensions.speedup import clean_xml_chars as _ncxc
-from polyglot.builtins import codepoint_to_chr, filter, map, range
+from polyglot.builtins import codepoint_to_chr
 from polyglot.html_entities import name2codepoint
 
 

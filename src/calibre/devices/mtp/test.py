@@ -1,18 +1,18 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:fdm=marker:ai
 
 
 __license__   = 'GPL v3'
 __copyright__ = '2012, Kovid Goyal <kovid at kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import unittest, gc, io
+import gc
+import io
+import unittest
 
-from calibre.constants import iswindows, islinux
-from calibre.utils.icu import lower
+from calibre.constants import islinux, iswindows
 from calibre.devices.mtp.driver import MTP_DEVICE
 from calibre.devices.scanner import DeviceScanner
-from polyglot.builtins import range
+from calibre.utils.icu import lower
 
 
 class ProgressCallback:

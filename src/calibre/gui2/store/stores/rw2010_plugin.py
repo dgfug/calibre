@@ -9,13 +9,13 @@ __docformat__ = 'restructuredtext en'
 
 import re
 from contextlib import closing
+
 try:
     from urllib.parse import urlencode
 except ImportError:
     from urllib import urlencode
 
 from lxml import html
-
 from qt.core import QUrl
 
 from calibre import browser, url_slash_cleaner
@@ -37,7 +37,7 @@ class RW2010Store(BasicStoreConfig, StorePlugin):
             d = WebStoreDialog(self.gui, url, parent, detail_item)
             d.setWindowTitle(self.name)
             d.set_tags(self.config.get('tags', ''))
-            d.exec_()
+            d.exec()
 
     def search(self, query, max_results=10, timeout=60):
         url = 'http://www.rw2010.pl/go.live.php/?launch_macro=catalogue-search-rd'

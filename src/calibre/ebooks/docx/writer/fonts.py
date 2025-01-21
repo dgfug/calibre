@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 
 
 __license__ = 'GPL v3'
@@ -10,7 +9,6 @@ from uuid import uuid4
 
 from calibre.ebooks.oeb.base import OEB_STYLES
 from calibre.ebooks.oeb.transforms.subset import find_font_face_rules
-from polyglot.builtins import range
 
 
 def obfuscate_font_data(data, key):

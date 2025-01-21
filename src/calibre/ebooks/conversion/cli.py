@@ -1,5 +1,3 @@
-
-
 __license__ = 'GPL 3'
 __copyright__ = '2009, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
@@ -8,16 +6,18 @@ __docformat__ = 'restructuredtext en'
 Command line interface to conversion sub-system
 '''
 
-import sys, os, numbers
-from optparse import OptionGroup, Option
+import numbers
+import os
+import sys
 from collections import OrderedDict
+from optparse import Option, OptionGroup
 
-from calibre.utils.config import OptionParser
-from calibre.utils.logging import Log
-from calibre.customize.conversion import OptionRecommendation
 from calibre import patheq
+from calibre.customize.conversion import OptionRecommendation
 from calibre.ebooks.conversion import ConversionUserFeedBack
+from calibre.utils.config import OptionParser
 from calibre.utils.localization import localize_user_manual_link
+from calibre.utils.logging import Log
 from polyglot.builtins import iteritems
 
 USAGE = '%prog ' + _('''\
@@ -89,13 +89,13 @@ def option_recommendation_to_cli_option(add_option, rec):
     switches.append('--'+opt.long_switch)
     attrs = dict(dest=opt.name, help=opt.help,
                      choices=opt.choices, default=rec.recommended_value)
-    if isinstance(rec.recommended_value, type(True)):
+    if isinstance(rec.recommended_value, bool):
         attrs['action'] = 'store_false' if rec.recommended_value else \
                           'store_true'
     else:
         if isinstance(rec.recommended_value, numbers.Integral):
             attrs['type'] = 'int'
-        if isinstance(rec.recommended_value, numbers.Real):
+        elif isinstance(rec.recommended_value, numbers.Real):
             attrs['type'] = 'float'
 
     if opt.long_switch == 'verbose':
@@ -103,7 +103,7 @@ def option_recommendation_to_cli_option(add_option, rec):
         attrs.pop('type', '')
     if opt.name == 'read_metadata_from_opf':
         switches.append('--from-opf')
-    if opt.name == 'transform_css_rules':
+    elif opt.name == 'transform_css_rules':
         attrs['help'] = _(
             'Path to a file containing rules to transform the CSS styles'
             ' in this book. The easiest way to create such a file is to'
@@ -112,6 +112,23 @@ def option_recommendation_to_cli_option(add_option, rec):
             ' dialog. Once you create the rules, you can use the "Export" button'
             ' to save them to a file.'
         )
+    elif opt.name == 'transform_html_rules':
+        attrs['help'] = _(
+            'Path to a file containing rules to transform the HTML'
+            ' in this book. The easiest way to create such a file is to'
+            ' use the wizard for creating rules in the calibre GUI. Access'
+            ' it in the "Look & feel->Transform HTML" section of the conversion'
+            ' dialog. Once you create the rules, you can use the "Export" button'
+            ' to save them to a file.'
+        )
+    elif opt.name == 'recipe_specific_option':
+        attrs['action'] = 'append'
+        attrs['help'] = _(
+            'Recipe specific options. Syntax is option_name:value. For example:'
+            ' {example}. Can be specified multiple'
+            ' times to set different options. To see a list of all available options'
+            ' for a recipe, use {list}.'
+        ).format(example='--recipe-specific-option=date:2030-11-31', list='--recipe-specific-option=list')
     if opt.name in DEFAULT_TRUE_OPTIONS and rec.recommended_value is True:
         switches = ['--disable-'+opt.long_switch]
     add_option(Option(*switches, **attrs))
@@ -194,7 +211,7 @@ def add_pipeline_options(parser, plumber):
                       'font_size_mapping', 'embed_font_family',
                       'subset_embedded_fonts', 'embed_all_fonts',
                       'line_height', 'minimum_line_height',
-                      'linearize_tables',
+                      'linearize_tables', 'transform_html_rules',
                       'extra_css', 'filter_css', 'transform_css_rules', 'expand_css',
                       'smarten_punctuation', 'unsmarten_punctuation',
                       'margin_top', 'margin_left', 'margin_right',
@@ -230,7 +247,7 @@ def add_pipeline_options(parser, plumber):
                       'chapter', 'chapter_mark',
                       'prefer_metadata_cover', 'remove_first_image',
                       'insert_metadata', 'page_breaks_before',
-                      'remove_fake_margins', 'start_reading_at',
+                      'remove_fake_margins', 'start_reading_at', 'add_alt_text_to_img',
                   ]
                   )),
 
@@ -290,7 +307,7 @@ class ProgressBar:
 
 def create_option_parser(args, log):
     if '--version' in args:
-        from calibre.constants import __appname__, __version__, __author__
+        from calibre.constants import __appname__, __author__, __version__
         log(os.path.basename(args[0]), '('+__appname__, __version__+')')
         log('Created by:', __author__)
         raise SystemExit(0)
@@ -340,7 +357,8 @@ def escape_sr_pattern(exp):
 
 
 def read_sr_patterns(path, log=None):
-    import json, re
+    import json
+    import re
     pats = []
     with open(path, 'rb') as f:
         lines = f.read().decode('utf-8').splitlines()
@@ -372,7 +390,7 @@ def main(args=sys.argv):
     parser, plumber = create_option_parser(args, log)
     opts, leftover_args = parser.parse_args(args)
     if len(leftover_args) > 3:
-        log.error('Extra arguments not understood:', u', '.join(leftover_args[3:]))
+        log.error('Extra arguments not understood:', ', '.join(leftover_args[3:]))
         return 1
     for x in ('read_metadata_from_opf', 'cover'):
         if getattr(opts, x, None) is not None:
@@ -387,6 +405,17 @@ def main(args=sys.argv):
                 title, msg = validate_rule(rule)
                 if title and msg:
                     log.error('Failed to parse CSS transform rules')
+                    log.error(title)
+                    log.error(msg)
+                    return 1
+    if opts.transform_html_rules:
+        from calibre.ebooks.html_transform_rules import import_rules, validate_rule
+        with open(opts.transform_html_rules, 'rb') as tcr:
+            opts.transform_html_rules = rules = list(import_rules(tcr.read()))
+            for rule in rules:
+                title, msg = validate_rule(rule)
+                if title and msg:
+                    log.error('Failed to parse HTML transform rules')
                     log.error(title)
                     log.error(msg)
                     return 1

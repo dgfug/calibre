@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 __license__   = 'GPL v3'
@@ -10,11 +9,11 @@ import re
 
 from lxml import etree, html
 
-from calibre import xml_replace_entities, force_unicode
-from calibre.utils.xml_parse import safe_xml_fromstring
+from calibre import force_unicode, xml_replace_entities
 from calibre.constants import filesystem_encoding
-from calibre.ebooks.chardet import xml_to_unicode, strip_encoding_declarations
-from polyglot.builtins import iteritems, itervalues, unicode_type, string_or_bytes, map
+from calibre.ebooks.chardet import strip_encoding_declarations, xml_to_unicode
+from calibre.utils.xml_parse import safe_xml_fromstring
+from polyglot.builtins import iteritems, itervalues, string_or_bytes
 
 RECOVER_PARSER = etree.XMLParser(recover=True, no_network=True, resolve_entities=False)
 XHTML_NS     = 'http://www.w3.org/1999/xhtml'
@@ -37,7 +36,7 @@ def namespace(name):
 
 
 def XHTML(name):
-    return '{%s}%s' % (XHTML_NS, name)
+    return f'{{{XHTML_NS}}}{name}'
 
 
 def xpath(elem, expr):
@@ -65,7 +64,8 @@ def merge_multiple_html_heads_and_bodies(root, log=None):
     for b in bodies:
         for x in b:
             body.append(x)
-    tuple(map(root.append, (head, body)))
+    for x in (head, body):
+        root.append(x)
     if log is not None:
         log.warn('Merging multiple <head> and <body> sections')
     return root
@@ -94,6 +94,7 @@ def node_depth(node):
 
 def html5_parse(data, max_nesting_depth=100):
     from html5_parser import parse
+
     from calibre.utils.cleantext import clean_xml_chars
     data = parse(clean_xml_chars(data), maybe_xhtml=True, keep_doctype=False, sanitize_names=True)
     # Check that the asinine HTML 5 algorithm did not result in a tree with
@@ -165,7 +166,7 @@ def parse_html(data, log=None, decoder=None, preprocessor=None,
 
     filename = force_unicode(filename, enc=filesystem_encoding)
 
-    if not isinstance(data, unicode_type):
+    if not isinstance(data, str):
         if decoder is not None:
             data = decoder(data)
         else:
@@ -247,7 +248,7 @@ def parse_html(data, log=None, decoder=None, preprocessor=None,
         nroot = safe_xml_fromstring('<html></html>')
         has_body = False
         for child in list(data):
-            if isinstance(child.tag, (unicode_type, bytes)) and barename(child.tag) == 'body':
+            if isinstance(child.tag, (str, bytes)) and barename(child.tag) == 'body':
                 has_body = True
                 break
         parent = nroot

@@ -1,22 +1,23 @@
 #!/usr/bin/env python
-# vim:fileencoding=utf-8
 
 
 __license__ = 'GPL v3'
 __copyright__ = '2015, Kovid Goyal <kovid at kovidgoyal.net>'
 
-import os, random, struct
+import os
+import random
+import struct
 from collections import OrderedDict
 from hashlib import md5, sha256
 from itertools import permutations
 from threading import Lock
 
-from calibre.srv.errors import HTTPAuthRequired, HTTPSimpleResponse, HTTPForbidden
+from calibre.srv.errors import HTTPAuthRequired, HTTPForbidden, HTTPSimpleResponse
 from calibre.srv.http_request import parse_uri
-from calibre.srv.utils import parse_http_dict, encode_path
+from calibre.srv.utils import encode_path, parse_http_dict
 from calibre.utils.monotonic import monotonic
 from polyglot import http_client
-from polyglot.binary import from_base64_unicode, from_hex_bytes, as_hex_unicode
+from polyglot.binary import as_hex_unicode, from_base64_unicode, from_hex_bytes
 
 MAX_AGE_SECONDS = 3600
 nonce_counter, nonce_counter_lock = 0, Lock()
@@ -167,9 +168,9 @@ class DigestAuth:  # {{{
         # If the "qop" value is "auth-int", then A2 is:
         #    A2 = method ":" digest-uri-value ":" H(entity-body)
         if self.qop == "auth-int":
-            a2 = "%s:%s:%s" % (data.method, self.uri, self.H(data.peek()))
+            a2 = f"{data.method}:{self.uri}:{self.H(data.peek())}"
         else:
-            a2 = '%s:%s' % (data.method, self.uri)
+            a2 = f'{data.method}:{self.uri}'
         return self.H(a2)
 
     def request_digest(self, pw, data):
@@ -177,10 +178,10 @@ class DigestAuth:  # {{{
         ha2 = self.H_A2(data)
         # Request-Digest -- RFC 2617 3.2.2.1
         if self.qop:
-            req = "%s:%s:%s:%s:%s" % (
+            req = "{}:{}:{}:{}:{}".format(
                 self.nonce, self.nonce_count, self.cnonce, self.qop, ha2)
         else:
-            req = "%s:%s" % (self.nonce, ha2)
+            req = f"{self.nonce}:{ha2}"
 
         # RFC 2617 3.2.2.2
         #
@@ -194,9 +195,9 @@ class DigestAuth:  # {{{
         # A1 = H( unq(username-value) ":" unq(realm-value) ":" passwd )
         #         ":" unq(nonce-value) ":" unq(cnonce-value)
         if self.algorithm == 'MD5-SESS':
-            ha1 = self.H('%s:%s:%s' % (ha1, self.nonce, self.cnonce))
+            ha1 = self.H(f'{ha1}:{self.nonce}:{self.cnonce}')
 
-        return self.H('%s:%s' % (ha1, req))
+        return self.H(f'{ha1}:{req}')
 
     def validate_request(self, pw, data, log=None):
         # We should also be checking for replay attacks by using nonce_count,
@@ -206,7 +207,7 @@ class DigestAuth:  # {{{
         path = parse_uri(self.uri.encode('utf-8'))[1]
         if path != data.path:
             if log is not None:
-                log.warn('Authorization URI mismatch: %s != %s from client: %s' % (
+                log.warn('Authorization URI mismatch: {} != {} from client: {}'.format(
                     data.path, path, data.remote_addr))
             raise HTTPSimpleResponse(http_client.BAD_REQUEST, 'The uri in the Request Line and the Authorization header do not match')
         return self.response is not None and data.path == path and self.request_digest(pw, data) == self.response
@@ -311,7 +312,7 @@ class AuthController:
         if self.prefer_basic_auth:
             raise HTTPAuthRequired('Basic realm="%s"' % self.realm, log=log_msg)
 
-        s = 'Digest realm="%s", nonce="%s", algorithm="MD5", qop="auth"' % (
+        s = 'Digest realm="{}", nonce="{}", algorithm="MD5", qop="auth"'.format(
             self.realm, synthesize_nonce(self.key_order, self.realm, self.secret))
         if nonce_is_stale:
             s += ', stale="true"'

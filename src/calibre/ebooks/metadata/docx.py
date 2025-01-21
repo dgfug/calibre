@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:fdm=marker:ai
 
 
 __license__   = 'GPL v3'
@@ -9,9 +8,9 @@ __docformat__ = 'restructuredtext en'
 from io import BytesIO
 
 from calibre.ebooks.docx.container import DOCX
-from calibre.utils.xml_parse import safe_xml_fromstring
 from calibre.ebooks.docx.writer.container import update_doc_props, xml2str
 from calibre.utils.imghdr import identify
+from calibre.utils.xml_parse import safe_xml_fromstring
 
 
 def get_cover(docx):

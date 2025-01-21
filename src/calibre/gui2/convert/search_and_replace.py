@@ -1,23 +1,19 @@
-# -*- coding: utf-8 -*-
-
-
 __license__ = 'GPL 3'
 __copyright__ = '2011, John Schember <john@nachtimwald.com>, 2012 Eli Algranti <idea00@hotmail.com>'
 __docformat__ = 'restructuredtext en'
 
-import codecs, json
+import codecs
+import json
 
 from qt.core import Qt, QTableWidgetItem
 
-from calibre.gui2.convert.search_and_replace_ui import Ui_Form
-from calibre.gui2.convert import Widget
-from calibre.gui2 import (error_dialog, question_dialog, choose_files,
-        choose_save_file)
 from calibre import as_unicode
-from calibre.utils.localization import localize_user_manual_link
-from calibre.ebooks.conversion.search_replace import compile_regular_expression
 from calibre.ebooks.conversion.config import OPTIONS
-from polyglot.builtins import unicode_type, range
+from calibre.ebooks.conversion.search_replace import compile_regular_expression
+from calibre.gui2 import choose_files, choose_save_file, error_dialog, question_dialog
+from calibre.gui2.convert import Widget
+from calibre.gui2.convert.search_and_replace_ui import Ui_Form
+from calibre.utils.localization import localize_user_manual_link
 
 
 class SearchAndReplaceWidget(Widget, Ui_Form):
@@ -25,7 +21,7 @@ class SearchAndReplaceWidget(Widget, Ui_Form):
     TITLE = _('Search &\nreplace')
     HELP  = _('Modify the document text and structure using user defined patterns.')
     COMMIT_NAME = 'search_and_replace'
-    ICON = I('search.png')
+    ICON = 'search.png'
     STRIP_TEXT_FIELDS = False
 
     def __init__(self, parent, get_option, get_help, db=None, book_id=None):
@@ -48,7 +44,7 @@ class SearchAndReplaceWidget(Widget, Ui_Form):
         self.sr_search.doc_update.connect(self.update_doc)
 
         proto = QTableWidgetItem()
-        proto.setFlags(Qt.ItemFlags(Qt.ItemFlag.ItemIsSelectable + Qt.ItemFlag.ItemIsEnabled))
+        proto.setFlags(Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEnabled)
         self.search_replace.setItemPrototype(proto)
         self.search_replace.setColumnCount(2)
         self.search_replace.setColumnWidth(0, 320)
@@ -193,7 +189,7 @@ class SearchAndReplaceWidget(Widget, Ui_Form):
         edit_search = self.sr_search.regex
 
         if edit_search:
-            edit_replace = unicode_type(self.sr_replace.text())
+            edit_replace = str(self.sr_replace.text())
             found = False
             for search, replace in definitions:
                 if search == edit_search and replace == edit_replace:
@@ -234,7 +230,7 @@ class SearchAndReplaceWidget(Widget, Ui_Form):
         for row in range(0, self.search_replace.rowCount()):
             colItems = []
             for col in range(0, self.search_replace.columnCount()):
-                colItems.append(unicode_type(self.search_replace.item(row, col).text()))
+                colItems.append(str(self.search_replace.item(row, col).text()))
             ans.append(colItems)
         return ans
 
@@ -281,7 +277,7 @@ class SearchAndReplaceWidget(Widget, Ui_Form):
                 rest[name] = val
 
         if rest:
-            super(SearchAndReplaceWidget, self).apply_recommendations(rest)
+            super().apply_recommendations(rest)
 
         self.set_value(self.opt_search_replace, None)
         if new_val is None and legacy:

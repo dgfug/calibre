@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:fdm=marker:ai
 
 
 __license__   = 'GPL v3'
@@ -7,16 +6,15 @@ __copyright__ = '2012, Kovid Goyal <kovid at kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
 import re
+from collections import Counter, OrderedDict
 from itertools import groupby
 from operator import itemgetter
-from collections import Counter, OrderedDict
-from polyglot.builtins import iteritems, map, zip, unicode_type, codepoint_to_chr
 
 from calibre import as_unicode
-from calibre.ebooks.pdf.render.common import (Array, String, Stream,
-    Dictionary, Name)
-from calibre.utils.fonts.sfnt.subset import pdf_subset, UnsupportedFont, NoGlyphs
+from calibre.ebooks.pdf.render.common import Array, Dictionary, Name, Stream, String
+from calibre.utils.fonts.sfnt.subset import NoGlyphs, UnsupportedFont, pdf_subset
 from calibre.utils.short_uuid import uuid4
+from polyglot.builtins import codepoint_to_chr, iteritems
 
 STANDARD_FONTS = {
     'Times-Roman', 'Helvetica', 'Courier', 'Symbol', 'Times-Bold',
@@ -122,7 +120,7 @@ class Font:
     def __init__(self, metrics, num, objects, compress):
         self.metrics, self.compress = metrics, compress
         self.is_otf = self.metrics.is_otf
-        self.subset_tag = unicode_type(
+        self.subset_tag = str(
             re.sub('.', lambda m: codepoint_to_chr(int(m.group())+ord('A')), oct(num).replace('o', '')
         )).rjust(6, 'A')
         self.font_stream = FontStream(metrics.is_otf, compress=compress)

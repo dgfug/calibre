@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 
 
 __license__   = 'GPL v3'
@@ -61,7 +60,7 @@ def create_bmp_from_dib(raw):
 
 
 def to_png(bmp):
-    from qt.core import QImage, QByteArray, QBuffer, QIODevice
+    from qt.core import QBuffer, QByteArray, QImage, QIODevice
     i = QImage()
     if not i.loadFromData(bmp):
         raise ValueError('Invalid image data')

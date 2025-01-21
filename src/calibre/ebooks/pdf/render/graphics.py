@@ -1,21 +1,18 @@
 #!/usr/bin/env python
-# vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:fdm=marker:ai
 
 
 __license__   = 'GPL v3'
 __copyright__ = '2012, Kovid Goyal <kovid at kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-from math import sqrt
 from collections import namedtuple
+from math import sqrt
 
-from qt.core import (
-    QBrush, QPen, Qt, QPointF, QTransform, QPaintEngine, QImage)
+from qt.core import QBrush, QImage, QPaintEngine, QPen, QPointF, Qt, QTransform
 
-from calibre.ebooks.pdf.render.common import (
-    Name, Array, fmtnum, Stream, Dictionary)
-from calibre.ebooks.pdf.render.serialize import Path
+from calibre.ebooks.pdf.render.common import Array, Dictionary, Name, Stream, fmtnum
 from calibre.ebooks.pdf.render.gradients import LinearGradientPattern
+from calibre.ebooks.pdf.render.serialize import Path
 
 
 def convert_path(path):  # {{{
@@ -224,7 +221,7 @@ class QtPattern(TilingPattern):
     )  # }}}
 
     def __init__(self, pattern_num, matrix):
-        super(QtPattern, self).__init__(pattern_num, matrix)
+        super().__init__(pattern_num, matrix)
         self.write(self.qt_patterns[pattern_num-2])
 
 
@@ -237,14 +234,14 @@ class TexturePattern(TilingPattern):
             imgref = pdf.add_image(image, cache_key)
             paint_type = (2 if image.format() in {QImage.Format.Format_MonoLSB,
                                                 QImage.Format.Format_Mono} else 1)
-            super(TexturePattern, self).__init__(
+            super().__init__(
                 cache_key, matrix, w=image.width(), h=image.height(),
                 paint_type=paint_type)
             m = (self.w, 0, 0, -self.h, 0, self.h)
             self.resources['XObject'] = Dictionary({'Texture':imgref})
             self.write_line('%s cm /Texture Do'%(' '.join(map(fmtnum, m))))
         else:
-            super(TexturePattern, self).__init__(
+            super().__init__(
                 clone.cache_key[1], matrix, w=clone.w, h=clone.h,
                 paint_type=clone.paint_type)
             self.resources['XObject'] = Dictionary(clone.resources['XObject'])
